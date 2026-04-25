@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://graph-theory-visualizer.example/sitemap-index.xml

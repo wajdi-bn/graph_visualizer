@@ -1,0 +1,231 @@
+---
+import "@styles/global.css"
+import type { Locale } from "@i18n/translations"
+import { translations } from "@i18n/translations"
+
+interface Props {
+  locale?: Locale
+  title?: string
+  description?: string
+  ogImage?: string
+  canonicalURL?: string
+}
+
+const locale = (Astro.props.locale ?? "en") as Locale
+const t = translations[locale]
+const ogLocale = locale === "fr" ? "fr_FR" : "en_US"
+
+const {
+  title = t.siteTitle,
+  description = t.siteDescription,
+  ogImage = "/og-image.png",
+  canonicalURL = new URL(Astro.url.pathname, Astro.site).href,
+} = Astro.props
+
+const siteName = "Graph Theory Visualizer"
+
+// Compute dynamic hreflang alternates
+const pathname = Astro.url.pathname.replace(/\/$/, '') || '/'
+const basePath = locale === 'fr' && pathname.startsWith('/fr')
+  ? pathname.slice(3) || '/'
+  : pathname
+const enAlternateUrl = new URL(basePath, Astro.site).href
+const frAlternateUrl = new URL(basePath === '/' ? '/fr/' : `/fr${basePath}`, Astro.site).href
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Primary Meta Tags -->
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#000000" />
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem('algoviz-theme')
+        const preferred = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+        document.documentElement.dataset.theme = saved || preferred
+      })()
+    </script>
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="manifest" href="/site.webmanifest" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(ogImage, Astro.site).href} />
+    <meta property="og:image:alt" content={title} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content={ogLocale} />
+    <link rel="alternate" hreflang="en" href={enAlternateUrl} />
+    <link rel="alternate" hreflang="fr" href={frAlternateUrl} />
+    <link rel="alternate" hreflang="x-default" href={enAlternateUrl} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonicalURL} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(ogImage, Astro.site).href} />
+
+    <!-- Structured Data -->
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: siteName,
+        description: description,
+        url: canonicalURL,
+        applicationCategory: "EducationalApplication",
+        operatingSystem: "Any",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+        author: {
+          "@type": "Organization",
+          name: siteName,
+        },
+      })}
+    />
+  </head>
+  <body class="bg-black text-gray-100 font-sans antialiased">
+    <!-- Skip to main content link for keyboard/screen reader users -->
+    <a href="#main-content" class="skip-link">
+      {locale === "fr" ? "Aller au contenu principal" : "Skip to main content"}
+    </a>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Skip link — visible only on focus */
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 16px;
+    z-index: 100;
+    padding: 8px 16px;
+    background: #fff;
+    color: #000;
+    border-radius: 0 0 8px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 0.2s ease;
+  }
+  .skip-link:focus {
+    top: 0;
+    outline: 2px solid #888;
+    outline-offset: 2px;
+  }
+
+  /* Visible focus rings for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid #888;
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Custom range slider for speed */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--range-track);
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--range-thumb);
+    border: 1px solid var(--range-thumb-border);
+    border-radius: 50%;
+    margin-top: -4px;
+    transition: transform 0.15s ease;
+  }
+  input[type="range"]:hover::-webkit-slider-runnable-track {
+    background: var(--range-track-hover);
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: var(--range-track);
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--range-thumb);
+    border: 1px solid var(--range-thumb-border);
+    border-radius: 50%;
+  }
+
+  /* Respect user preference for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Screen-reader only utility */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+</style>
