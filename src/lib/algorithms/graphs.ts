@@ -39,6 +39,25 @@ const weightedExampleOptions = [
   { id: 'dense', label: { en: 'Denser graph', fr: 'Graphe plus dense' } },
 ]
 
+const negativeWeightedExampleOptions = [
+  {
+    id: 'negative-directed',
+    label: { en: 'Graph with negative weights', fr: 'Graphe avec poids negatifs' },
+  },
+]
+
+const stronglyConnectedExampleOptions = [
+  { id: 'directed-scc', label: { en: 'Directed SCC graph', fr: 'Graphe oriente CFC' } },
+]
+
+const eulerianExampleOptions = [
+  { id: 'eulerian-circuit', label: { en: 'Eulerian circuit', fr: 'Circuit eulerien' } },
+]
+
+const coloringExampleOptions = [
+  { id: 'coloring-dense', label: { en: 'Coloring graph', fr: 'Graphe de coloration' } },
+]
+
 function getWeightedDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
   if (exampleId === 'dense') {
     return {
@@ -339,6 +358,7 @@ Bellman-Ford finds shortest paths from a source even when directed edges have ne
 
 Time Complexity: O(VE)
 Space Complexity: O(V)`,
+  examples: negativeWeightedExampleOptions,
   generateSteps(locale = 'en') {
     const nodes: GraphNode[] = [
       { id: 0, label: 'S', x: 70, y: 165 },
@@ -492,6 +512,7 @@ Bellman's dynamic-programming shortest-path recurrence computes the best distanc
 
 Time Complexity: O(VE)
 Space Complexity: O(V)`,
+  examples: negativeWeightedExampleOptions,
   generateSteps(locale = 'en') {
     const nodes: GraphNode[] = [
       { id: 0, label: 'S', x: 55, y: 170 },
@@ -1040,6 +1061,7 @@ Kosaraju finds strongly connected components in a directed graph with two DFS pa
 
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
+  examples: stronglyConnectedExampleOptions,
   generateSteps(locale = 'en') {
     const nodes: GraphNode[] = [
       { id: 0, label: 'A', x: 95, y: 85 },
@@ -1190,6 +1212,7 @@ An Eulerian path uses every edge exactly once. This visualization uses Hierholze
 
 Time Complexity: O(V + E)
 Space Complexity: O(E)`,
+  examples: eulerianExampleOptions,
   generateSteps(locale = 'en') {
     const nodes: GraphNode[] = [
       { id: 0, label: 'A', x: 95, y: 90 },
@@ -1316,6 +1339,7 @@ Welsh-Powell greedily colors vertices in decreasing degree order, assigning the 
 
 Time Complexity: O(V^2)
 Space Complexity: O(V)`,
+  examples: coloringExampleOptions,
   generateSteps(locale = 'en') {
     const nodes: GraphNode[] = [
       { id: 0, label: 'A', x: 110, y: 65 },

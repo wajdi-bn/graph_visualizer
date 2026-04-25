@@ -2,6 +2,7 @@ import type { Algorithm } from '@lib/types'
 import type { Locale, Translations } from '@i18n/translations'
 import { getAlgorithmName, getCategoryName, locales, localeNames } from '@i18n/translations'
 import Controls from '@components/Controls'
+import GraphExamplePicker from '@components/GraphExamplePicker'
 
 interface HeaderProps {
   locale: Locale
@@ -27,6 +28,7 @@ interface HeaderProps {
   onToggleTheme: () => void
   selectedExampleId: string | null
   onExampleChange: (exampleId: string) => void
+  onCreateGraph: () => void
 }
 
 function getLocaleUrl(targetLocale: Locale, algorithmId?: string) {
@@ -58,6 +60,7 @@ export default function Header({
   onToggleTheme,
   selectedExampleId,
   onExampleChange,
+  onCreateGraph,
 }: HeaderProps) {
   const algorithmName = selectedAlgorithm
     ? getAlgorithmName(locale, selectedAlgorithm.id, selectedAlgorithm.name)
@@ -65,7 +68,7 @@ export default function Header({
 
   return (
     <header
-      className="h-12 shrink-0 flex items-center justify-between px-3 md:px-5 border-b border-white/8 bg-black z-10"
+      className="relative z-[60] h-12 shrink-0 flex items-center justify-between px-3 md:px-5 border-b border-white/8 bg-black"
       role="banner"
     >
       <div className="flex items-center gap-2 md:gap-3 min-w-0 shrink-0">
@@ -157,22 +160,14 @@ export default function Header({
           </HeaderIconButton>
         )}
 
-        {selectedAlgorithm?.examples && selectedAlgorithm.examples.length > 1 && (
-          <label className="hidden sm:flex items-center gap-1.5">
-            <span className="sr-only">{t.demoExample}</span>
-            <select
-              value={selectedExampleId ?? selectedAlgorithm.examples[0].id}
-              onChange={(event) => onExampleChange(event.target.value)}
-              aria-label={t.demoExample}
-              className="max-w-[150px] md:max-w-[190px] rounded-md border border-white/8 bg-white/6 px-2 py-1 text-[11px] text-neutral-300 outline-none hover:bg-white/8 focus:border-white/20 transition-colors"
-            >
-              {selectedAlgorithm.examples.map((example) => (
-                <option key={example.id} value={example.id}>
-                  {example.label[locale]}
-                </option>
-              ))}
-            </select>
-          </label>
+        {selectedAlgorithm && (
+          <GraphExamplePicker
+            locale={locale}
+            selectedAlgorithm={selectedAlgorithm}
+            selectedExampleId={selectedExampleId}
+            onExampleChange={onExampleChange}
+            onCreateGraph={onCreateGraph}
+          />
         )}
 
         <button

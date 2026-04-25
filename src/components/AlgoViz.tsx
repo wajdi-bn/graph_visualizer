@@ -61,6 +61,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     if (typeof document === 'undefined') return 'dark'
     return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
   })
+  const [graphEditorNotice, setGraphEditorNotice] = useState(false)
   const isMobile = useIsMobile()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [mobileCodePanelOpen, setMobileCodePanelOpen] = useState(false)
@@ -153,6 +154,21 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     [locale, selectAlgorithmBase, codePanel.expand, updateMetaDescription],
   )
 
+  const openGraphEditor = useCallback(() => {
+    const detail = {
+      algorithmId: selectedAlgorithm?.id ?? null,
+      handled: false,
+    }
+
+    window.dispatchEvent(new CustomEvent('algoviz:open-graph-editor', { detail }))
+    window.dispatchEvent(new CustomEvent('open-graph-editor', { detail }))
+
+    if (!detail.handled) {
+      setGraphEditorNotice(true)
+      window.setTimeout(() => setGraphEditorNotice(false), 2600)
+    }
+  }, [selectedAlgorithm?.id])
+
   useEffect(() => {
     const handlePopState = () => {
       const algoId = getAlgorithmIdFromPath(window.location.pathname)
@@ -222,6 +238,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         onToggleTheme={toggleTheme}
         selectedExampleId={selectedExampleId}
         onExampleChange={selectExample}
+        onCreateGraph={openGraphEditor}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -486,6 +503,17 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
               d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"
             />
           </MobileIconButton>
+        </div>
+      )}
+
+      {graphEditorNotice && (
+        <div
+          className="fixed bottom-4 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-white/12 bg-black px-3 py-2 text-xs text-neutral-300 shadow-2xl shadow-black/50"
+          role="status"
+        >
+          {locale === 'fr'
+            ? 'Aucun editeur de graphe existant n est connecte.'
+            : 'No existing graph editor is connected.'}
         </div>
       )}
     </div>
