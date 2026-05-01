@@ -12,8 +12,10 @@ import {
 const CANVAS_WIDTH = 500
 const CANVAS_HEIGHT = 340
 const NODE_RADIUS = 22
-const DEFAULT_NODE_COLOR = '#111827'
-const DEFAULT_EDGE_COLOR = '#737373'
+const DEFAULT_NODE_COLOR = '#1e293b'
+const DEFAULT_EDGE_COLOR = '#475569'
+const SELECTED_COLOR = '#22d3ee'
+const WAITING_EDGE_COLOR = '#facc15'
 const HISTORY_LIMIT = 80
 
 type EditorTool = 'select' | 'node' | 'edge'
@@ -190,6 +192,25 @@ function displayDate(value: string, locale: Locale) {
 
 function colorValue(value: string | undefined, fallback: string) {
   return value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
+}
+
+function hexToRgb(color: string) {
+  const match = /^#([0-9a-f]{6})$/i.exec(color.trim())
+  if (!match) return null
+  const value = match[1]
+  return {
+    r: parseInt(value.slice(0, 2), 16),
+    g: parseInt(value.slice(2, 4), 16),
+    b: parseInt(value.slice(4, 6), 16),
+  }
+}
+
+function readableTextColor(fill: string | undefined) {
+  if (!fill) return '#ffffff'
+  const rgb = hexToRgb(fill)
+  if (!rgb) return '#ffffff'
+  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
+  return luminance > 0.58 ? '#0f172a' : '#ffffff'
 }
 
 function getSelectionEdgeIndexes(draft: EditorDraft, selection: Selection) {
@@ -1072,7 +1093,7 @@ export default function GraphEditorModal({
                     onClick={() => selectGraph(graph)}
                     className={`w-full rounded-md border p-2 text-left transition-colors ${
                       graph.id === draft.id
-                        ? 'border-emerald-400/60 bg-emerald-400/10'
+                        ? 'border-cyan-300/60 bg-cyan-300/10'
                         : 'border-white/8 bg-white/[0.03] hover:border-white/18 hover:bg-white/8'
                     }`}
                   >
@@ -1270,8 +1291,24 @@ export default function GraphEditorModal({
                         markerHeight="5"
                         orient="auto-start-reverse"
                       >
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#d4d4d4" />
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--graph-stroke-default, #22d3ee)" />
                       </marker>
+                      <pattern id="graph-editor-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                        <path
+                          d="M 24 0 H 0 V 24"
+                          fill="none"
+                          stroke="var(--graph-editor-grid, rgba(148, 163, 184, 0.14))"
+                          strokeWidth="0.8"
+                        />
+                      </pattern>
+                      <pattern id="graph-editor-grid-major" width="120" height="120" patternUnits="userSpaceOnUse">
+                        <path
+                          d="M 120 0 H 0 V 120"
+                          fill="none"
+                          stroke="var(--graph-editor-grid-major, rgba(34, 211, 238, 0.14))"
+                          strokeWidth="1.1"
+                        />
+                      </pattern>
                     </defs>
                     <rect
                       x={viewBox.x}
@@ -1281,6 +1318,22 @@ export default function GraphEditorModal({
                       fill="transparent"
                       onPointerDown={handleCanvasPointerDown}
                     />
+                    <rect
+                      x={viewBox.x}
+                      y={viewBox.y}
+                      width={viewBox.width}
+                      height={viewBox.height}
+                      fill="url(#graph-editor-grid)"
+                      pointerEvents="none"
+                    />
+                    <rect
+                      x={viewBox.x}
+                      y={viewBox.y}
+                      width={viewBox.width}
+                      height={viewBox.height}
+                      fill="url(#graph-editor-grid-major)"
+                      pointerEvents="none"
+                    />
 
                     {draft.edges.map((edge, index) => {
                       const from = draft.nodes.find((node) => node.id === edge.from)
@@ -1288,7 +1341,7 @@ export default function GraphEditorModal({
                       if (!from || !to) return null
 
                       const selectedEdge = selectedEdgeIndexes.includes(index)
-                      const color = selectedEdge ? '#34d399' : edge.color ?? DEFAULT_EDGE_COLOR
+                      const color = selectedEdge ? SELECTED_COLOR : edge.color ?? DEFAULT_EDGE_COLOR
                       const start = draft.directed
                         ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
                         : { x: from.x, y: from.y }
@@ -1331,13 +1384,20 @@ export default function GraphEditorModal({
                           />
                           {label != null && (
                             <>
-                              <circle cx={midX} cy={midY} r={11} fill="#000" stroke={color} strokeWidth={1} />
+                              <circle
+                                cx={midX}
+                                cy={midY}
+                                r={11}
+                                fill="var(--graph-weight-bg, #020617)"
+                                stroke={color}
+                                strokeWidth={1}
+                              />
                               <text
                                 x={midX}
                                 y={midY}
                                 textAnchor="middle"
                                 dominantBaseline="central"
-                                fill="#d4d4d4"
+                                fill="var(--graph-weight-text, #e2e8f0)"
                                 fontSize="9"
                                 fontWeight={700}
                               >
@@ -1372,7 +1432,7 @@ export default function GraphEditorModal({
                               cy={node.y}
                               r={NODE_RADIUS + 5}
                               fill="none"
-                              stroke={waitingForEdge ? '#fbbf24' : '#34d399'}
+                              stroke={waitingForEdge ? WAITING_EDGE_COLOR : SELECTED_COLOR}
                               strokeWidth={2}
                               opacity={0.9}
                             />
@@ -1382,7 +1442,7 @@ export default function GraphEditorModal({
                             cy={node.y}
                             r={NODE_RADIUS}
                             fill={node.color ?? DEFAULT_NODE_COLOR}
-                            stroke={active ? '#34d399' : '#d4d4d4'}
+                            stroke={active ? SELECTED_COLOR : 'var(--graph-stroke-default, #22d3ee)'}
                             strokeWidth={active ? 2.4 : 1.6}
                           />
                           <text
@@ -1390,7 +1450,7 @@ export default function GraphEditorModal({
                             y={node.y}
                             textAnchor="middle"
                             dominantBaseline="central"
-                            fill="#ffffff"
+                            fill={readableTextColor(node.color ?? DEFAULT_NODE_COLOR)}
                             fontSize="12"
                             fontWeight={700}
                           >
@@ -1406,9 +1466,9 @@ export default function GraphEditorModal({
                         y={marqueeRect.y}
                         width={marqueeRect.width}
                         height={marqueeRect.height}
-                        fill="#34d399"
+                        fill={SELECTED_COLOR}
                         fillOpacity={0.08}
-                        stroke="#34d399"
+                        stroke={SELECTED_COLOR}
                         strokeWidth={1}
                         strokeDasharray="5 4"
                         pointerEvents="none"
@@ -1447,7 +1507,7 @@ export default function GraphEditorModal({
                         type="checkbox"
                         checked={draft.directed}
                         onChange={(event) => setDirected(event.target.checked)}
-                        className="h-4 w-4 accent-emerald-400"
+                        className="h-4 w-4 accent-cyan-300"
                       />
                     </label>
                   </div>
@@ -1704,7 +1764,7 @@ function ToolButton({
       disabled={disabled}
       className={`flex h-8 w-8 items-center justify-center rounded-md border transition-colors disabled:pointer-events-none disabled:opacity-35 ${
         active
-          ? 'border-emerald-400/60 bg-emerald-400/12 text-emerald-200'
+          ? 'border-cyan-300/60 bg-cyan-300/12 text-cyan-100'
           : 'border-white/10 bg-white/6 text-neutral-400 hover:bg-white/10 hover:text-white'
       }`}
       aria-label={label}

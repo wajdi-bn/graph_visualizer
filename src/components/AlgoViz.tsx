@@ -36,7 +36,7 @@ function getAlgorithmUrl(locale: string, algoId: string): string {
 
 function getAlgorithmIdFromPath(pathname: string): string | null {
   const cleaned = pathname.replace(/\/$/, '')
-  if (cleaned === '' || cleaned === '/fr') return null
+  if (cleaned === '' || cleaned === '/app' || cleaned === '/fr' || cleaned === '/fr/app') return null
   if (cleaned.startsWith('/fr/')) return cleaned.slice(4)
   return cleaned.slice(1)
 }

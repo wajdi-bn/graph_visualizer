@@ -419,10 +419,10 @@ Applications:
 
 export const translations: Record<Locale, Translations> = {
   en: {
-    siteTitle: 'Graph Theory Visualizer',
+    siteTitle: 'GraphForce',
     siteDescription:
       'Interactive graph theory visualizations for shortest paths, spanning trees, connectivity, coloring, and Union-Find.',
-    welcomeTitle: 'Graph Theory Visualizer',
+    welcomeTitle: 'GraphForce',
     welcomeDescription:
       'Select a graph algorithm from the sidebar to watch each step unfold.\nThe visualizer focuses on classic graph theory concepts and problems.',
     playPauseShortcut: 'Play / Pause',
@@ -483,10 +483,10 @@ export const translations: Record<Locale, Translations> = {
     algorithmDescriptions: enDescriptions,
   },
   fr: {
-    siteTitle: 'Visualiseur de Theorie des Graphes',
+    siteTitle: 'GraphForce',
     siteDescription:
       'Visualisations interactives de theorie des graphes : plus courts chemins, arbres couvrants, connectivite, coloration et Union-Find.',
-    welcomeTitle: 'Visualiseur de Theorie des Graphes',
+    welcomeTitle: 'GraphForce',
     welcomeDescription:
       'Selectionnez un algorithme de graphe dans la barre laterale pour suivre chaque etape.\nLe visualiseur se concentre sur les concepts classiques de theorie des graphes.',
     playPauseShortcut: 'Lecture / Pause',
@@ -567,9 +567,9 @@ export function getCategoryName(locale: Locale, categoryKey: string): string {
 export function getAlgorithmMetaTitle(locale: Locale, algorithmId: string, fallbackName: string): string {
   const desc = translations[locale].algorithmDescriptions[algorithmId]
   const name = getAlgorithmName(locale, algorithmId, fallbackName)
-  if (!desc) return `${name} | Graph Theory Visualizer`
+  if (!desc) return `${name} | GraphForce`
   const firstLine = desc.split('\n')[0].trim()
-  return `${firstLine || name} | Graph Theory Visualizer`
+  return `${firstLine || name} | GraphForce`
 }
 
 export function getAlgorithmMetaDescription(locale: Locale, algorithmId: string): string {

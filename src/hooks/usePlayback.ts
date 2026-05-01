@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Algorithm, Step } from '@lib/types'
 import type { Locale } from '@i18n/translations'
 import {
@@ -129,7 +129,18 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     setCurrentStep(0)
   }, [clearAutoplayTimer])
 
-  const currentStepData = steps[currentStep] || null
+  const rawCurrentStepData = steps[currentStep] || null
+  const currentStepData = useMemo(() => {
+    if (!rawCurrentStepData?.graph || currentStep < steps.length - 1) return rawCurrentStepData
+    return {
+      ...rawCurrentStepData,
+      graph: {
+        ...rawCurrentStepData.graph,
+        currentNode: null,
+        currentEdge: null,
+      },
+    }
+  }, [currentStep, rawCurrentStepData, steps.length])
 
   return {
     selectedAlgorithm,
