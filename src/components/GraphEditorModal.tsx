@@ -3,6 +3,7 @@ import type { GraphEdge, GraphNode } from '@lib/types'
 import type { Locale } from '@i18n/translations'
 import {
   deleteSessionGraph,
+  normalizeSessionGraph,
   saveSessionGraph,
   type SessionGraph,
   type SessionGraphDraft,
@@ -13,9 +14,54 @@ const CANVAS_HEIGHT = 340
 const NODE_RADIUS = 22
 const DEFAULT_NODE_COLOR = '#111827'
 const DEFAULT_EDGE_COLOR = '#737373'
+const HISTORY_LIMIT = 80
 
 type EditorTool = 'select' | 'node' | 'edge'
-type SelectedElement = { type: 'node'; id: number } | { type: 'edge'; index: number } | null
+
+interface Selection {
+  nodeIds: number[]
+  edgeIndexes: number[]
+}
+
+interface ViewBox {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+type ContextMenuState = {
+  x: number
+  y: number
+} | null
+
+type ClipboardPayload = {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
+
+type DragState =
+  | {
+      type: 'nodes'
+      pointerId: number
+      start: { x: number; y: number }
+      nodeIds: number[]
+      nodeStarts: Record<number, { x: number; y: number }>
+      originalDraft: EditorDraft
+      moved: boolean
+    }
+  | {
+      type: 'pan'
+      pointerId: number
+      startClient: { x: number; y: number }
+      viewStart: ViewBox
+    }
+  | {
+      type: 'marquee'
+      pointerId: number
+      start: { x: number; y: number }
+      end: { x: number; y: number }
+    }
 
 type EditorDraft = SessionGraphDraft & {
   name: string
@@ -45,6 +91,14 @@ function blankDraft(): EditorDraft {
   }
 }
 
+function cloneDraft(draft: EditorDraft): EditorDraft {
+  return {
+    ...draft,
+    nodes: draft.nodes.map((node) => ({ ...node })),
+    edges: draft.edges.map((edge) => ({ ...edge })),
+  }
+}
+
 function draftFromGraph(graph: SessionGraph): EditorDraft {
   return {
     id: graph.id,
@@ -58,8 +112,44 @@ function draftFromGraph(graph: SessionGraph): EditorDraft {
   }
 }
 
+function draftFromJson(value: unknown): EditorDraft | null {
+  const candidate = value
+  const normalized = normalizeSessionGraph(candidate as Partial<SessionGraphDraft>)
+  return {
+    ...blankDraft(),
+    ...normalized,
+    name: normalized.name,
+    description: normalized.description,
+    directed: normalized.directed,
+    nodes: normalized.nodes,
+    edges: normalized.edges,
+  }
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
+}
+
+function clampNodePoint(point: { x: number; y: number }) {
+  return {
+    x: clamp(point.x, NODE_RADIUS, CANVAS_WIDTH - NODE_RADIUS),
+    y: clamp(point.y, NODE_RADIUS, CANVAS_HEIGHT - NODE_RADIUS),
+  }
+}
+
+function emptySelection(): Selection {
+  return { nodeIds: [], edgeIndexes: [] }
+}
+
+function hasSelection(selection: Selection) {
+  return selection.nodeIds.length > 0 || selection.edgeIndexes.length > 0
+}
+
+function normalizeSelection(selection: Selection): Selection {
+  return {
+    nodeIds: [...new Set(selection.nodeIds)],
+    edgeIndexes: [...new Set(selection.edgeIndexes)],
+  }
 }
 
 function edgeKey(edge: GraphEdge, directed: boolean) {
@@ -102,6 +192,46 @@ function colorValue(value: string | undefined, fallback: string) {
   return value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
 }
 
+function getSelectionEdgeIndexes(draft: EditorDraft, selection: Selection) {
+  const selectedNodes = new Set(selection.nodeIds)
+  const indexes = new Set(selection.edgeIndexes)
+  draft.edges.forEach((edge, index) => {
+    if (selectedNodes.has(edge.from) && selectedNodes.has(edge.to)) indexes.add(index)
+  })
+  return [...indexes].filter((index) => draft.edges[index])
+}
+
+function getSelectionPayload(draft: EditorDraft, selection: Selection): ClipboardPayload | null {
+  const nodeIds = new Set(selection.nodeIds)
+  for (const index of selection.edgeIndexes) {
+    const edge = draft.edges[index]
+    if (edge) {
+      nodeIds.add(edge.from)
+      nodeIds.add(edge.to)
+    }
+  }
+
+  if (nodeIds.size === 0) return null
+
+  const nodes = draft.nodes.filter((node) => nodeIds.has(node.id)).map((node) => ({ ...node }))
+  const selectedEdges = new Set(getSelectionEdgeIndexes(draft, selection))
+  const edges = draft.edges
+    .filter((edge, index) => selectedEdges.has(index) || (nodeIds.has(edge.from) && nodeIds.has(edge.to)))
+    .filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to))
+    .map((edge) => ({ ...edge }))
+
+  return { nodes, edges }
+}
+
+function getMarqueeRect(start: { x: number; y: number }, end: { x: number; y: number }) {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x),
+    height: Math.abs(end.y - start.y),
+  }
+}
+
 export default function GraphEditorModal({
   open,
   locale,
@@ -112,18 +242,49 @@ export default function GraphEditorModal({
   onDeleted,
 }: GraphEditorModalProps) {
   const svgRef = useRef<SVGSVGElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const draftRef = useRef<EditorDraft>(blankDraft())
+  const selectionRef = useRef<Selection>(emptySelection())
+  const viewBoxRef = useRef<ViewBox>({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+  const historyRef = useRef<{ past: EditorDraft[]; future: EditorDraft[] }>({ past: [], future: [] })
+  const graphsRef = useRef<SessionGraph[]>(graphs)
+  const dragRef = useRef<DragState | null>(null)
+  const clipboardRef = useRef<ClipboardPayload | null>(null)
+
   const [draft, setDraft] = useState<EditorDraft>(() => blankDraft())
   const [tool, setTool] = useState<EditorTool>('select')
-  const [selected, setSelected] = useState<SelectedElement>(null)
+  const [selection, setSelectionState] = useState<Selection>(() => emptySelection())
   const [edgeStartId, setEdgeStartId] = useState<number | null>(null)
-  const [draggingNodeId, setDraggingNodeId] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
+  const [viewBox, setViewBoxState] = useState<ViewBox>(() => ({
+    x: 0,
+    y: 0,
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+  }))
+  const [selectionBox, setSelectionBox] = useState<{
+    start: { x: number; y: number }
+    end: { x: number; y: number }
+  } | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
+  const [history, setHistory] = useState<{ past: EditorDraft[]; future: EditorDraft[] }>({
+    past: [],
+    future: [],
+  })
 
+  const selectedEdgeIndexes = useMemo(
+    () => getSelectionEdgeIndexes(draft, selection),
+    [draft, selection],
+  )
   const selectedNode =
-    selected?.type === 'node' ? draft.nodes.find((node) => node.id === selected.id) ?? null : null
-  const selectedEdge =
-    selected?.type === 'edge' ? draft.edges[selected.index] ?? null : null
+    selection.nodeIds.length === 1 && selectedEdgeIndexes.length === 0
+      ? draft.nodes.find((node) => node.id === selection.nodeIds[0]) ?? null
+      : null
+  const selectedEdgeIndex =
+    selection.nodeIds.length === 0 && selectedEdgeIndexes.length === 1 ? selectedEdgeIndexes[0] : null
+  const selectedEdge = selectedEdgeIndex == null ? null : draft.edges[selectedEdgeIndex] ?? null
+  const selectedCount = selection.nodeIds.length + selectedEdgeIndexes.length
 
   const filteredGraphs = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -134,42 +295,110 @@ export default function GraphEditorModal({
   }, [graphs, query])
 
   useEffect(() => {
-    if (!open) return
+    graphsRef.current = graphs
+  }, [graphs])
 
-    const initialGraph = initialGraphId
-      ? graphs.find((graph) => graph.id === initialGraphId) ?? null
-      : null
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
 
-    setDraft(initialGraph ? draftFromGraph(initialGraph) : blankDraft())
-    setTool('select')
-    setSelected(null)
-    setEdgeStartId(null)
-    setDraggingNodeId(null)
-    setNotice('')
-  }, [open, initialGraphId, graphs])
+  useEffect(() => {
+    selectionRef.current = selection
+  }, [selection])
+
+  useEffect(() => {
+    viewBoxRef.current = viewBox
+  }, [viewBox])
+
+  useEffect(() => {
+    historyRef.current = history
+  }, [history])
 
   useEffect(() => {
     if (!open) return
 
+    const initialGraph = initialGraphId
+      ? graphsRef.current.find((graph) => graph.id === initialGraphId) ?? null
+      : null
+    const initialDraft = initialGraph ? draftFromGraph(initialGraph) : blankDraft()
+
+    draftRef.current = initialDraft
+    setDraft(initialDraft)
+    setTool('select')
+    setSelection(emptySelection())
+    setEdgeStartId(null)
+    setSelectionBox(null)
+    setContextMenu(null)
+    setNotice('')
+    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    historyRef.current = { past: [], future: [] }
+    setHistory(historyRef.current)
+  }, [open, initialGraphId])
+
+  useEffect(() => {
+    if (!open) return
+
+    const handlePointerDown = () => setContextMenu(null)
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        const target = event.target as HTMLElement | null
-        const editing =
-          target?.tagName === 'INPUT' ||
-          target?.tagName === 'TEXTAREA' ||
-          target?.tagName === 'SELECT'
-        if (!editing) deleteSelected()
+      const target = event.target as HTMLElement | null
+      const editing =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.tagName === 'SELECT'
+
+      if (event.key === 'Escape') {
+        if (contextMenu) {
+          setContextMenu(null)
+          return
+        }
+        if (edgeStartId != null) {
+          setEdgeStartId(null)
+          return
+        }
+        onClose()
+        return
+      }
+
+      if (editing) return
+
+      const key = event.key.toLowerCase()
+      if ((event.ctrlKey || event.metaKey) && key === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) redo()
+        else undo()
+      } else if ((event.ctrlKey || event.metaKey) && key === 'y') {
+        event.preventDefault()
+        redo()
+      } else if ((event.ctrlKey || event.metaKey) && key === 's') {
+        event.preventDefault()
+        handleSave(false)
+      } else if ((event.ctrlKey || event.metaKey) && key === 'c') {
+        event.preventDefault()
+        copySelection()
+      } else if ((event.ctrlKey || event.metaKey) && key === 'v') {
+        event.preventDefault()
+        pasteClipboard()
+      } else if ((event.ctrlKey || event.metaKey) && key === 'd') {
+        event.preventDefault()
+        duplicateSelection()
+      } else if ((event.ctrlKey || event.metaKey) && key === 'a') {
+        event.preventDefault()
+        selectAll()
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault()
+        deleteSelected()
       }
     }
 
     document.body.style.overflow = 'hidden'
+    window.addEventListener('pointerdown', handlePointerDown)
     window.addEventListener('keydown', handleKeyDown)
     return () => {
       document.body.style.overflow = ''
+      window.removeEventListener('pointerdown', handlePointerDown)
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open, onClose, selected])
+  }, [open, contextMenu, edgeStartId, onClose])
 
   useEffect(() => {
     if (!notice) return
@@ -178,6 +407,70 @@ export default function GraphEditorModal({
   }, [notice])
 
   if (!open) return null
+
+  function setSelection(next: Selection) {
+    const normalized = normalizeSelection(next)
+    selectionRef.current = normalized
+    setSelectionState(normalized)
+  }
+
+  function setViewBox(next: ViewBox) {
+    viewBoxRef.current = next
+    setViewBoxState(next)
+  }
+
+  function pushHistorySnapshot(snapshot: EditorDraft) {
+    const next = {
+      past: [...historyRef.current.past.slice(-(HISTORY_LIMIT - 1)), cloneDraft(snapshot)],
+      future: [],
+    }
+    historyRef.current = next
+    setHistory(next)
+  }
+
+  function replaceDraft(next: EditorDraft) {
+    draftRef.current = next
+    setDraft(next)
+  }
+
+  function applyDraft(mutator: (current: EditorDraft) => EditorDraft, options: { keepSelection?: boolean } = {}) {
+    const before = cloneDraft(draftRef.current)
+    const next = mutator(cloneDraft(draftRef.current))
+    replaceDraft(next)
+    pushHistorySnapshot(before)
+    if (!options.keepSelection) setSelection(emptySelection())
+    setContextMenu(null)
+  }
+
+  function undo() {
+    const current = historyRef.current
+    if (current.past.length === 0) return
+    const previous = current.past[current.past.length - 1]
+    const next = {
+      past: current.past.slice(0, -1),
+      future: [cloneDraft(draftRef.current), ...current.future],
+    }
+    historyRef.current = next
+    setHistory(next)
+    replaceDraft(cloneDraft(previous))
+    setSelection(emptySelection())
+    setEdgeStartId(null)
+  }
+
+  function redo() {
+    const current = historyRef.current
+    if (current.future.length === 0) return
+    const nextDraft = current.future[0]
+    const next = {
+      past: [...current.past, cloneDraft(draftRef.current)],
+      future: current.future.slice(1),
+    }
+    historyRef.current = next
+    setHistory(next)
+    replaceDraft(cloneDraft(nextDraft))
+    setSelection(emptySelection())
+    setEdgeStartId(null)
+  }
 
   function getCanvasPoint(clientX: number, clientY: number) {
     const svg = svgRef.current
@@ -188,120 +481,220 @@ export default function GraphEditorModal({
     point.y = clientY
     const matrix = svg.getScreenCTM()
     if (!matrix) return { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
-    const transformed = point.matrixTransform(matrix.inverse())
-    return {
-      x: clamp(transformed.x, NODE_RADIUS, CANVAS_WIDTH - NODE_RADIUS),
-      y: clamp(transformed.y, NODE_RADIUS, CANVAS_HEIGHT - NODE_RADIUS),
-    }
+    return point.matrixTransform(matrix.inverse())
   }
 
   function updateDraft(update: Partial<EditorDraft>) {
-    setDraft((current) => ({ ...current, ...update }))
+    applyDraft((current) => ({ ...current, ...update }), { keepSelection: true })
   }
 
   function updateNode(nodeId: number, update: Partial<GraphNode>) {
-    setDraft((current) => ({
-      ...current,
-      nodes: current.nodes.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              ...update,
-              x: update.x == null ? node.x : clamp(update.x, NODE_RADIUS, CANVAS_WIDTH - NODE_RADIUS),
-              y: update.y == null ? node.y : clamp(update.y, NODE_RADIUS, CANVAS_HEIGHT - NODE_RADIUS),
-            }
-          : node,
-      ),
-    }))
+    applyDraft(
+      (current) => ({
+        ...current,
+        nodes: current.nodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                ...update,
+                x: update.x == null ? node.x : clamp(update.x, NODE_RADIUS, CANVAS_WIDTH - NODE_RADIUS),
+                y: update.y == null ? node.y : clamp(update.y, NODE_RADIUS, CANVAS_HEIGHT - NODE_RADIUS),
+              }
+            : node,
+        ),
+      }),
+      { keepSelection: true },
+    )
   }
 
   function updateEdge(index: number, update: Partial<GraphEdge>) {
-    setDraft((current) => ({
-      ...current,
-      edges: current.edges.map((edge, edgeIndex) =>
-        edgeIndex === index
-          ? {
-              ...edge,
-              ...update,
-              directed: current.directed,
-            }
-          : edge,
-      ),
-    }))
+    applyDraft(
+      (current) => ({
+        ...current,
+        edges: current.edges.map((edge, edgeIndex) =>
+          edgeIndex === index
+            ? {
+                ...edge,
+                ...update,
+                directed: current.directed,
+              }
+            : edge,
+        ),
+      }),
+      { keepSelection: true },
+    )
   }
 
   function addNodeAt(x: number, y: number) {
-    const id = nextNodeId(draft.nodes)
+    const id = nextNodeId(draftRef.current.nodes)
+    const point = clampNodePoint({ x, y })
     const node: GraphNode = {
       id,
-      label: nextNodeLabel(draft.nodes),
-      x,
-      y,
+      label: nextNodeLabel(draftRef.current.nodes),
+      x: point.x,
+      y: point.y,
       color: DEFAULT_NODE_COLOR,
     }
 
-    setDraft((current) => ({ ...current, nodes: [...current.nodes, node] }))
-    setSelected({ type: 'node', id })
+    applyDraft((current) => ({ ...current, nodes: [...current.nodes, node] }), {
+      keepSelection: true,
+    })
+    setSelection({ nodeIds: [id], edgeIndexes: [] })
   }
 
   function addEdge(from: number, to: number) {
     if (from === to) return
 
+    const current = draftRef.current
     const nextEdge: GraphEdge = {
       from,
       to,
       weight: 1,
-      directed: draft.directed,
+      directed: current.directed,
       color: DEFAULT_EDGE_COLOR,
     }
-    const nextKey = edgeKey(nextEdge, draft.directed)
-    const exists = draft.edges.some((edge) => edgeKey(edge, draft.directed) === nextKey)
+    const nextKey = edgeKey(nextEdge, current.directed)
+    const exists = current.edges.some((edge) => edgeKey(edge, current.directed) === nextKey)
     if (exists) {
       setNotice(locale === 'fr' ? 'Cette arete existe deja.' : 'That edge already exists.')
       return
     }
 
-    setDraft((current) => ({ ...current, edges: [...current.edges, nextEdge] }))
-    setSelected({ type: 'edge', index: draft.edges.length })
+    applyDraft((draftValue) => ({ ...draftValue, edges: [...draftValue.edges, nextEdge] }), {
+      keepSelection: true,
+    })
+    setSelection({ nodeIds: [], edgeIndexes: [current.edges.length] })
   }
 
   function deleteSelected() {
-    if (!selected) return
+    const currentSelection = selectionRef.current
+    if (!hasSelection(currentSelection)) return
 
-    if (selected.type === 'node') {
-      const nodeId = selected.id
-      setDraft((current) => ({
-        ...current,
-        nodes: current.nodes.filter((node) => node.id !== nodeId),
-        edges: current.edges.filter((edge) => edge.from !== nodeId && edge.to !== nodeId),
-      }))
-    } else {
-      setDraft((current) => ({
-        ...current,
-        edges: current.edges.filter((_, index) => index !== selected.index),
-      }))
-    }
+    const nodeIds = new Set(currentSelection.nodeIds)
+    const edgeIndexes = new Set(getSelectionEdgeIndexes(draftRef.current, currentSelection))
 
-    setSelected(null)
+    applyDraft((current) => ({
+      ...current,
+      nodes: current.nodes.filter((node) => !nodeIds.has(node.id)),
+      edges: current.edges.filter(
+        (edge, index) => !edgeIndexes.has(index) && !nodeIds.has(edge.from) && !nodeIds.has(edge.to),
+      ),
+    }))
     setEdgeStartId(null)
   }
 
+  function selectAll() {
+    setSelection({
+      nodeIds: draftRef.current.nodes.map((node) => node.id),
+      edgeIndexes: draftRef.current.edges.map((_, index) => index),
+    })
+  }
+
+  function copySelection() {
+    const payload = getSelectionPayload(draftRef.current, selectionRef.current)
+    if (!payload) return
+    clipboardRef.current = payload
+    setNotice(locale === 'fr' ? 'Selection copiee.' : 'Selection copied.')
+  }
+
+  function pastePayload(payload: ClipboardPayload | null) {
+    if (!payload || payload.nodes.length === 0) return
+
+    const current = draftRef.current
+    let nextId = nextNodeId(current.nodes)
+    const idMap = new Map<number, number>()
+    const nextNodes = payload.nodes.map((node) => {
+      const id = nextId++
+      idMap.set(node.id, id)
+      const point = clampNodePoint({ x: node.x + 28, y: node.y + 28 })
+      return {
+        ...node,
+        id,
+        x: point.x,
+        y: point.y,
+      }
+    })
+    const nextEdges = payload.edges
+      .map((edge) => {
+        const from = idMap.get(edge.from)
+        const to = idMap.get(edge.to)
+        if (from == null || to == null) return null
+        return {
+          ...edge,
+          from,
+          to,
+          directed: current.directed,
+        }
+      })
+      .filter((edge): edge is GraphEdge => edge != null)
+
+    applyDraft(
+      (draftValue) => ({
+        ...draftValue,
+        nodes: [...draftValue.nodes, ...nextNodes],
+        edges: [...draftValue.edges, ...nextEdges],
+      }),
+      { keepSelection: true },
+    )
+
+    const edgeStartIndex = current.edges.length
+    setSelection({
+      nodeIds: nextNodes.map((node) => node.id),
+      edgeIndexes: nextEdges.map((_, index) => edgeStartIndex + index),
+    })
+  }
+
+  function pasteClipboard() {
+    pastePayload(clipboardRef.current)
+  }
+
+  function duplicateSelection() {
+    const payload = getSelectionPayload(draftRef.current, selectionRef.current)
+    pastePayload(payload)
+  }
+
   function handleCanvasPointerDown(event: React.PointerEvent<SVGRectElement>) {
+    if (event.button === 2) return
+    setContextMenu(null)
     const point = getCanvasPoint(event.clientX, event.clientY)
-    setSelected(null)
     setEdgeStartId(null)
 
     if (tool === 'node') {
       addNodeAt(point.x, point.y)
       setTool('select')
+      return
+    }
+
+    if (event.button === 1 || event.altKey) {
+      dragRef.current = {
+        type: 'pan',
+        pointerId: event.pointerId,
+        startClient: { x: event.clientX, y: event.clientY },
+        viewStart: viewBoxRef.current,
+      }
+      event.currentTarget.setPointerCapture(event.pointerId)
+      return
+    }
+
+    if (tool === 'select') {
+      dragRef.current = {
+        type: 'marquee',
+        pointerId: event.pointerId,
+        start: point,
+        end: point,
+      }
+      setSelectionBox({ start: point, end: point })
+      event.currentTarget.setPointerCapture(event.pointerId)
     }
   }
 
   function handleNodePointerDown(event: React.PointerEvent<SVGGElement>, nodeId: number) {
+    if (event.button === 2) return
     event.stopPropagation()
-    setSelected({ type: 'node', id: nodeId })
+    setContextMenu(null)
 
     if (tool === 'edge') {
+      setSelection({ nodeIds: [nodeId], edgeIndexes: [] })
       if (edgeStartId == null) {
         setEdgeStartId(nodeId)
       } else {
@@ -311,44 +704,166 @@ export default function GraphEditorModal({
       return
     }
 
-    setDraggingNodeId(nodeId)
+    if (event.ctrlKey || event.metaKey) {
+      const selectedNodes = new Set(selectionRef.current.nodeIds)
+      if (selectedNodes.has(nodeId)) selectedNodes.delete(nodeId)
+      else selectedNodes.add(nodeId)
+      setSelection({ ...selectionRef.current, nodeIds: [...selectedNodes] })
+      return
+    }
+
+    const selectedNodes = new Set(selectionRef.current.nodeIds)
+    const nodeIds = selectedNodes.has(nodeId) ? [...selectedNodes] : [nodeId]
+    setSelection({ nodeIds, edgeIndexes: selectedNodes.has(nodeId) ? selectionRef.current.edgeIndexes : [] })
+
+    const start = getCanvasPoint(event.clientX, event.clientY)
+    const nodeStarts: Record<number, { x: number; y: number }> = {}
+    for (const id of nodeIds) {
+      const node = draftRef.current.nodes.find((entry) => entry.id === id)
+      if (node) nodeStarts[id] = { x: node.x, y: node.y }
+    }
+
+    dragRef.current = {
+      type: 'nodes',
+      pointerId: event.pointerId,
+      start,
+      nodeIds,
+      nodeStarts,
+      originalDraft: cloneDraft(draftRef.current),
+      moved: false,
+    }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
+  function handleEdgePointerDown(event: React.PointerEvent<SVGLineElement>, index: number) {
+    if (event.button === 2) return
+    event.stopPropagation()
+    setContextMenu(null)
+
+    if (event.ctrlKey || event.metaKey) {
+      const edgeIndexes = new Set(selectionRef.current.edgeIndexes)
+      if (edgeIndexes.has(index)) edgeIndexes.delete(index)
+      else edgeIndexes.add(index)
+      setSelection({ ...selectionRef.current, edgeIndexes: [...edgeIndexes] })
+      return
+    }
+
+    setSelection({ nodeIds: [], edgeIndexes: [index] })
+    setEdgeStartId(null)
+  }
+
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
-    if (draggingNodeId == null || tool !== 'select') return
-    const point = getCanvasPoint(event.clientX, event.clientY)
-    updateNode(draggingNodeId, point)
+    const drag = dragRef.current
+    if (!drag) return
+
+    if (drag.type === 'nodes') {
+      const point = getCanvasPoint(event.clientX, event.clientY)
+      const dx = point.x - drag.start.x
+      const dy = point.y - drag.start.y
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) drag.moved = true
+
+      const nodeIds = new Set(drag.nodeIds)
+      const next = {
+        ...draftRef.current,
+        nodes: draftRef.current.nodes.map((node) => {
+          if (!nodeIds.has(node.id)) return node
+          const start = drag.nodeStarts[node.id]
+          if (!start) return node
+          return {
+            ...node,
+            ...clampNodePoint({ x: start.x + dx, y: start.y + dy }),
+          }
+        }),
+      }
+      replaceDraft(next)
+      return
+    }
+
+    if (drag.type === 'pan') {
+      const svg = svgRef.current
+      const bounds = svg?.getBoundingClientRect()
+      if (!bounds) return
+      const dx = ((event.clientX - drag.startClient.x) / bounds.width) * drag.viewStart.width
+      const dy = ((event.clientY - drag.startClient.y) / bounds.height) * drag.viewStart.height
+      setViewBox({
+        ...drag.viewStart,
+        x: drag.viewStart.x - dx,
+        y: drag.viewStart.y - dy,
+      })
+      return
+    }
+
+    if (drag.type === 'marquee') {
+      const point = getCanvasPoint(event.clientX, event.clientY)
+      drag.end = point
+      setSelectionBox({ start: drag.start, end: point })
+    }
   }
 
   function handlePointerUp() {
-    setDraggingNodeId(null)
+    const drag = dragRef.current
+    if (!drag) return
+
+    if (drag.type === 'nodes' && drag.moved) {
+      pushHistorySnapshot(drag.originalDraft)
+    }
+
+    if (drag.type === 'marquee') {
+      const rect = getMarqueeRect(drag.start, drag.end)
+      if (rect.width < 3 && rect.height < 3) {
+        setSelection(emptySelection())
+      } else {
+        const nodeIds = draftRef.current.nodes
+          .filter(
+            (node) =>
+              node.x >= rect.x &&
+              node.x <= rect.x + rect.width &&
+              node.y >= rect.y &&
+              node.y <= rect.y + rect.height,
+          )
+          .map((node) => node.id)
+        const selectedNodes = new Set(nodeIds)
+        const edgeIndexes = draftRef.current.edges
+          .map((edge, index) => ({ edge, index }))
+          .filter(({ edge }) => selectedNodes.has(edge.from) && selectedNodes.has(edge.to))
+          .map(({ index }) => index)
+        setSelection({ nodeIds, edgeIndexes })
+      }
+      setSelectionBox(null)
+    }
+
+    dragRef.current = null
   }
 
   function layoutCircle() {
-    if (draft.nodes.length === 0) return
-    const radius = Math.min(118, 38 + draft.nodes.length * 9)
+    if (draftRef.current.nodes.length === 0) return
+    const radius = Math.min(118, 38 + draftRef.current.nodes.length * 9)
     const cx = CANVAS_WIDTH / 2
     const cy = CANVAS_HEIGHT / 2
-    const nextNodes = draft.nodes.map((node, index) => {
-      const angle = (Math.PI * 2 * index) / draft.nodes.length - Math.PI / 2
-      return {
-        ...node,
-        x: cx + Math.cos(angle) * radius,
-        y: cy + Math.sin(angle) * radius,
-      }
-    })
-    updateDraft({ nodes: nextNodes })
+    applyDraft(
+      (current) => ({
+        ...current,
+        nodes: current.nodes.map((node, index) => {
+          const angle = (Math.PI * 2 * index) / current.nodes.length - Math.PI / 2
+          return {
+            ...node,
+            x: cx + Math.cos(angle) * radius,
+            y: cy + Math.sin(angle) * radius,
+          }
+        }),
+      }),
+      { keepSelection: true },
+    )
   }
 
   function handleSave(saveAsCopy = false) {
     const graph = saveSessionGraph(
       {
-        ...draft,
-        id: saveAsCopy ? undefined : draft.id,
+        ...draftRef.current,
+        id: saveAsCopy ? undefined : draftRef.current.id,
         name: saveAsCopy
-          ? `${draft.name.trim() || 'Untitled graph'} ${locale === 'fr' ? '(copie)' : '(copy)'}`
-          : draft.name.trim() || 'Untitled graph',
+          ? `${draftRef.current.name.trim() || 'Untitled graph'} ${locale === 'fr' ? '(copie)' : '(copy)'}`
+          : draftRef.current.name.trim() || 'Untitled graph',
       },
       saveAsCopy,
     )
@@ -357,42 +872,148 @@ export default function GraphEditorModal({
   }
 
   function handleDeleteGraph() {
-    if (!draft.id) return
+    if (!draftRef.current.id) return
     const confirmed = window.confirm(
       locale === 'fr'
         ? 'Supprimer ce graphe de sessionStorage ?'
         : 'Delete this graph from sessionStorage?',
     )
     if (!confirmed) return
-    deleteSessionGraph(draft.id)
-    onDeleted(draft.id)
-    setDraft(blankDraft())
-    setSelected(null)
+    deleteSessionGraph(draftRef.current.id)
+    onDeleted(draftRef.current.id)
+    replaceDraft(blankDraft())
+    setSelection(emptySelection())
+    historyRef.current = { past: [], future: [] }
+    setHistory(historyRef.current)
   }
 
   function selectGraph(graph: SessionGraph) {
-    setDraft(draftFromGraph(graph))
-    setSelected(null)
+    const next = draftFromGraph(graph)
+    replaceDraft(next)
+    setSelection(emptySelection())
     setEdgeStartId(null)
     setTool('select')
+    historyRef.current = { past: [], future: [] }
+    setHistory(historyRef.current)
+    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+  }
+
+  function createNewGraph() {
+    replaceDraft(blankDraft())
+    setSelection(emptySelection())
+    setEdgeStartId(null)
+    setTool('select')
+    historyRef.current = { past: [], future: [] }
+    setHistory(historyRef.current)
+    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
   }
 
   function clearGraph() {
-    setDraft((current) => ({
+    if (draftRef.current.nodes.length === 0 && draftRef.current.edges.length === 0) return
+    applyDraft((current) => ({
       ...current,
       nodes: [],
       edges: [],
     }))
-    setSelected(null)
     setEdgeStartId(null)
   }
 
   function setDirected(directed: boolean) {
-    setDraft((current) => ({
-      ...current,
-      directed,
-      edges: current.edges.map((edge) => ({ ...edge, directed })),
-    }))
+    applyDraft(
+      (current) => ({
+        ...current,
+        directed,
+        edges: current.edges.map((edge) => ({ ...edge, directed })),
+      }),
+      { keepSelection: true },
+    )
+  }
+
+  function zoomBy(factor: number, center = { x: viewBoxRef.current.x + viewBoxRef.current.width / 2, y: viewBoxRef.current.y + viewBoxRef.current.height / 2 }) {
+    const current = viewBoxRef.current
+    const nextWidth = clamp(current.width * factor, 80, 1000)
+    const nextHeight = clamp(current.height * factor, 55, 680)
+    const px = (center.x - current.x) / current.width
+    const py = (center.y - current.y) / current.height
+    setViewBox({
+      x: center.x - nextWidth * px,
+      y: center.y - nextHeight * py,
+      width: nextWidth,
+      height: nextHeight,
+    })
+  }
+
+  function fitView() {
+    if (draftRef.current.nodes.length === 0) {
+      setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+      return
+    }
+
+    const minX = Math.min(...draftRef.current.nodes.map((node) => node.x)) - 60
+    const maxX = Math.max(...draftRef.current.nodes.map((node) => node.x)) + 60
+    const minY = Math.min(...draftRef.current.nodes.map((node) => node.y)) - 60
+    const maxY = Math.max(...draftRef.current.nodes.map((node) => node.y)) + 60
+    let width = Math.max(120, maxX - minX)
+    let height = Math.max(90, maxY - minY)
+    const aspect = CANVAS_WIDTH / CANVAS_HEIGHT
+    const currentAspect = width / height
+
+    if (currentAspect > aspect) {
+      height = width / aspect
+    } else {
+      width = height * aspect
+    }
+
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+    setViewBox({
+      x: cx - width / 2,
+      y: cy - height / 2,
+      width,
+      height,
+    })
+  }
+
+  function handleWheel(event: React.WheelEvent<SVGSVGElement>) {
+    event.preventDefault()
+    const point = getCanvasPoint(event.clientX, event.clientY)
+    zoomBy(event.deltaY > 0 ? 1.12 : 0.88, point)
+  }
+
+  function openContextMenu(event: React.MouseEvent, selectionForTarget?: Selection) {
+    event.preventDefault()
+    event.stopPropagation()
+    if (selectionForTarget) setSelection(selectionForTarget)
+    setContextMenu({ x: event.clientX, y: event.clientY })
+  }
+
+  function exportJson() {
+    const payload = normalizeSessionGraph(draftRef.current)
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${(draftRef.current.name || 'graph').trim().replace(/[^a-z0-9-_]+/gi, '-').toLowerCase()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function importJson(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result ?? ''))
+        const imported = draftFromJson(parsed)
+        if (!imported) throw new Error('Invalid graph')
+        applyDraft(() => ({ ...imported, id: undefined, createdAt: undefined, updatedAt: undefined }))
+        setSelection(emptySelection())
+        fitView()
+        setNotice(locale === 'fr' ? 'Graphe importe.' : 'Graph imported.')
+      } catch {
+        setNotice(locale === 'fr' ? 'JSON invalide.' : 'Invalid JSON file.')
+      }
+    }
+    reader.readAsText(file)
   }
 
   const title = draft.id
@@ -402,6 +1023,9 @@ export default function GraphEditorModal({
     : locale === 'fr'
       ? 'Creer un graphe'
       : 'Create graph'
+
+  const marqueeRect = selectionBox ? getMarqueeRect(selectionBox.start, selectionBox.end) : null
+  const hasClipboard = clipboardRef.current != null
 
   return (
     <div
@@ -419,11 +1043,7 @@ export default function GraphEditorModal({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setDraft(blankDraft())
-                  setSelected(null)
-                  setEdgeStartId(null)
-                }}
+                onClick={createNewGraph}
                 className="h-7 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-300 transition-colors hover:bg-white/10 hover:text-white"
               >
                 {locale === 'fr' ? 'Nouveau' : 'New'}
@@ -478,8 +1098,11 @@ export default function GraphEditorModal({
                 {title}
               </h2>
               <div className="hidden text-[11px] text-neutral-500 sm:block">
-                {draft.nodes.length} {locale === 'fr' ? 'sommets' : 'nodes'} / {draft.edges.length}{' '}
-                {locale === 'fr' ? 'aretes' : 'edges'}
+                {selectedCount > 0
+                  ? `${selectedCount} ${locale === 'fr' ? 'selectionnes' : 'selected'}`
+                  : `${draft.nodes.length} ${locale === 'fr' ? 'sommets' : 'nodes'} / ${draft.edges.length} ${
+                      locale === 'fr' ? 'aretes' : 'edges'
+                    }`}
               </div>
             </div>
 
@@ -549,7 +1172,23 @@ export default function GraphEditorModal({
                 </ToolButton>
                 <ToolButton
                   active={false}
-                  disabled={!selected}
+                  disabled={history.past.length === 0}
+                  label={locale === 'fr' ? 'Annuler' : 'Undo'}
+                  onClick={undo}
+                >
+                  <path d="M9 7H4v5M4 12a7 7 0 1 0 2-5" />
+                </ToolButton>
+                <ToolButton
+                  active={false}
+                  disabled={history.future.length === 0}
+                  label={locale === 'fr' ? 'Retablir' : 'Redo'}
+                  onClick={redo}
+                >
+                  <path d="M15 7h5v5M20 12a7 7 0 1 1-2-5" />
+                </ToolButton>
+                <ToolButton
+                  active={false}
+                  disabled={!hasSelection(selection)}
                   label={locale === 'fr' ? 'Supprimer selection' : 'Delete selected'}
                   onClick={deleteSelected}
                 >
@@ -564,6 +1203,40 @@ export default function GraphEditorModal({
                   <circle cx="12" cy="12" r="3" />
                   <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
                 </ToolButton>
+                <ToolButton active={false} label={locale === 'fr' ? 'Zoom avant' : 'Zoom in'} onClick={() => zoomBy(0.82)}>
+                  <path d="M10 5v10M5 10h10M15 15l5 5" />
+                </ToolButton>
+                <ToolButton active={false} label={locale === 'fr' ? 'Zoom arriere' : 'Zoom out'} onClick={() => zoomBy(1.18)}>
+                  <path d="M5 10h10M15 15l5 5" />
+                </ToolButton>
+                <ToolButton active={false} label={locale === 'fr' ? 'Ajuster la vue' : 'Fit view'} onClick={fitView}>
+                  <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+                </ToolButton>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) importJson(file)
+                    event.currentTarget.value = ''
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  {locale === 'fr' ? 'Importer' : 'Import'}
+                </button>
+                <button
+                  type="button"
+                  onClick={exportJson}
+                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  {locale === 'fr' ? 'Exporter' : 'Export'}
+                </button>
                 <button
                   type="button"
                   onClick={clearGraph}
@@ -578,11 +1251,13 @@ export default function GraphEditorModal({
                 <div className="h-full min-h-[320px] overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
                   <svg
                     ref={svgRef}
-                    viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-                    className="h-full w-full touch-none"
+                    viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+                    className={`h-full w-full touch-none ${tool === 'node' ? 'cursor-crosshair' : ''}`}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
+                    onWheel={handleWheel}
+                    onContextMenu={(event) => openContextMenu(event)}
                     aria-label={locale === 'fr' ? 'Zone de dessin du graphe' : 'Graph drawing area'}
                   >
                     <defs>
@@ -599,8 +1274,10 @@ export default function GraphEditorModal({
                       </marker>
                     </defs>
                     <rect
-                      width={CANVAS_WIDTH}
-                      height={CANVAS_HEIGHT}
+                      x={viewBox.x}
+                      y={viewBox.y}
+                      width={viewBox.width}
+                      height={viewBox.height}
                       fill="transparent"
                       onPointerDown={handleCanvasPointerDown}
                     />
@@ -610,8 +1287,7 @@ export default function GraphEditorModal({
                       const to = draft.nodes.find((node) => node.id === edge.to)
                       if (!from || !to) return null
 
-                      const selectedEdgeIndex = selected?.type === 'edge' ? selected.index : -1
-                      const selectedEdge = selectedEdgeIndex === index
+                      const selectedEdge = selectedEdgeIndexes.includes(index)
                       const color = selectedEdge ? '#34d399' : edge.color ?? DEFAULT_EDGE_COLOR
                       const start = draft.directed
                         ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
@@ -633,11 +1309,15 @@ export default function GraphEditorModal({
                             stroke="transparent"
                             strokeWidth={14}
                             strokeLinecap="round"
-                            onPointerDown={(event) => {
-                              event.stopPropagation()
-                              setSelected({ type: 'edge', index })
-                              setEdgeStartId(null)
-                            }}
+                            onPointerDown={(event) => handleEdgePointerDown(event, index)}
+                            onContextMenu={(event) =>
+                              openContextMenu(
+                                event,
+                                selectedEdgeIndexes.includes(index)
+                                  ? undefined
+                                  : { nodeIds: [], edgeIndexes: [index] },
+                              )
+                            }
                           />
                           <line
                             x1={start.x}
@@ -670,12 +1350,20 @@ export default function GraphEditorModal({
                     })}
 
                     {draft.nodes.map((node) => {
-                      const active = selected?.type === 'node' && selected.id === node.id
+                      const active = selection.nodeIds.includes(node.id)
                       const waitingForEdge = tool === 'edge' && edgeStartId === node.id
                       return (
                         <g
                           key={node.id}
                           onPointerDown={(event) => handleNodePointerDown(event, node.id)}
+                          onContextMenu={(event) =>
+                            openContextMenu(
+                              event,
+                              selection.nodeIds.includes(node.id)
+                                ? undefined
+                                : { nodeIds: [node.id], edgeIndexes: [] },
+                            )
+                          }
                           className="cursor-pointer"
                         >
                           {(active || waitingForEdge) && (
@@ -711,6 +1399,21 @@ export default function GraphEditorModal({
                         </g>
                       )
                     })}
+
+                    {marqueeRect && (
+                      <rect
+                        x={marqueeRect.x}
+                        y={marqueeRect.y}
+                        width={marqueeRect.width}
+                        height={marqueeRect.height}
+                        fill="#34d399"
+                        fillOpacity={0.08}
+                        stroke="#34d399"
+                        strokeWidth={1}
+                        strokeDasharray="5 4"
+                        pointerEvents="none"
+                      />
+                    )}
                   </svg>
                 </div>
               </div>
@@ -767,9 +1470,13 @@ export default function GraphEditorModal({
 
                   {!selectedNode && !selectedEdge && (
                     <div className="rounded-md border border-white/8 bg-black p-3 text-xs leading-5 text-neutral-500">
-                      {locale === 'fr'
-                        ? 'Selectionnez un sommet ou une arete pour modifier ses details.'
-                        : 'Select a node or edge to edit its details.'}
+                      {selectedCount > 1
+                        ? locale === 'fr'
+                          ? `${selectedCount} elements selectionnes.`
+                          : `${selectedCount} elements selected.`
+                        : locale === 'fr'
+                          ? 'Selectionnez un sommet ou une arete pour modifier ses details.'
+                          : 'Select a node or edge to edit its details.'}
                     </div>
                   )}
 
@@ -811,14 +1518,14 @@ export default function GraphEditorModal({
                     </div>
                   )}
 
-                  {selectedEdge && selected?.type === 'edge' && (
+                  {selectedEdge && selectedEdgeIndex != null && (
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <FieldLabel label={locale === 'fr' ? 'Source' : 'Source'}>
                           <select
                             value={selectedEdge.from}
                             onChange={(event) =>
-                              updateEdge(selected.index, { from: Number(event.target.value) })
+                              updateEdge(selectedEdgeIndex, { from: Number(event.target.value) })
                             }
                             className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
                           >
@@ -833,7 +1540,7 @@ export default function GraphEditorModal({
                           <select
                             value={selectedEdge.to}
                             onChange={(event) =>
-                              updateEdge(selected.index, { to: Number(event.target.value) })
+                              updateEdge(selectedEdgeIndex, { to: Number(event.target.value) })
                             }
                             className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
                           >
@@ -850,7 +1557,7 @@ export default function GraphEditorModal({
                           type="number"
                           value={selectedEdge.weight ?? ''}
                           onChange={(event) =>
-                            updateEdge(selected.index, {
+                            updateEdge(selectedEdgeIndex, {
                               weight: event.target.value === '' ? undefined : Number(event.target.value),
                             })
                           }
@@ -861,7 +1568,7 @@ export default function GraphEditorModal({
                         <input
                           value={selectedEdge.label ?? ''}
                           onChange={(event) =>
-                            updateEdge(selected.index, { label: event.target.value || undefined })
+                            updateEdge(selectedEdgeIndex, { label: event.target.value || undefined })
                           }
                           className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
                         />
@@ -870,7 +1577,7 @@ export default function GraphEditorModal({
                         <input
                           type="color"
                           value={colorValue(selectedEdge.color, DEFAULT_EDGE_COLOR)}
-                          onChange={(event) => updateEdge(selected.index, { color: event.target.value })}
+                          onChange={(event) => updateEdge(selectedEdgeIndex, { color: event.target.value })}
                           className="h-8 w-full rounded-md border border-white/10 bg-black p-1"
                         />
                       </FieldLabel>
@@ -890,7 +1597,7 @@ export default function GraphEditorModal({
                     <button
                       type="button"
                       onClick={handleDeleteGraph}
-                      className="h-8 rounded-md border border-rose-400/25 bg-rose-400/10 px-2 text-xs text-rose-200 transition-colors hover:bg-rose-400/15"
+                      className="h-8 rounded-md border border-rose-500/35 bg-rose-500/10 px-2 text-xs text-rose-500 transition-colors hover:bg-rose-500/15"
                     >
                       {locale === 'fr' ? 'Supprimer' : 'Delete graph'}
                     </button>
@@ -901,6 +1608,69 @@ export default function GraphEditorModal({
           </div>
         </section>
       </div>
+
+      {contextMenu && (
+        <div
+          className="fixed z-[120] w-44 overflow-hidden rounded-md border border-white/12 bg-black py-1 shadow-2xl shadow-black/60"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+          role="menu"
+        >
+          <ContextMenuItem
+            disabled={!hasSelection(selection)}
+            onClick={() => {
+              copySelection()
+              setContextMenu(null)
+            }}
+          >
+            {locale === 'fr' ? 'Copier' : 'Copy'}
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!hasSelection(selection)}
+            onClick={() => {
+              duplicateSelection()
+              setContextMenu(null)
+            }}
+          >
+            {locale === 'fr' ? 'Dupliquer' : 'Duplicate'}
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!hasClipboard}
+            onClick={() => {
+              pasteClipboard()
+              setContextMenu(null)
+            }}
+          >
+            {locale === 'fr' ? 'Coller' : 'Paste'}
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!hasSelection(selection)}
+            onClick={() => {
+              deleteSelected()
+              setContextMenu(null)
+            }}
+          >
+            {locale === 'fr' ? 'Supprimer' : 'Delete'}
+          </ContextMenuItem>
+          <div className="my-1 border-t border-white/8" />
+          <ContextMenuItem
+            onClick={() => {
+              selectAll()
+              setContextMenu(null)
+            }}
+          >
+            {locale === 'fr' ? 'Tout selectionner' : 'Select all'}
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              fitView()
+              setContextMenu(null)
+            }}
+          >
+            {locale === 'fr' ? 'Ajuster la vue' : 'Fit view'}
+          </ContextMenuItem>
+        </div>
+      )}
 
       {notice && (
         <div
@@ -943,6 +1713,28 @@ function ToolButton({
       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
         {children}
       </svg>
+    </button>
+  )
+}
+
+function ContextMenuItem({
+  disabled = false,
+  onClick,
+  children,
+}: {
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="block h-8 w-full px-3 text-left text-xs text-neutral-300 transition-colors hover:bg-white/8 hover:text-white disabled:pointer-events-none disabled:text-neutral-700"
+      role="menuitem"
+    >
+      {children}
     </button>
   )
 }
