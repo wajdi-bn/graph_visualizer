@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Algorithm, Step } from '@lib/types'
 import type { Locale } from '@i18n/translations'
+import {
+  getSessionGraph,
+  getSessionGraphIdFromExampleId,
+  graphToState,
+  isSessionGraphExampleId,
+} from '@lib/sessionGraphs'
 
 export const SPEED_MAP: Record<number, number> = {
   1: 1500,
@@ -11,13 +17,24 @@ export const SPEED_MAP: Record<number, number> = {
 }
 
 export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null) {
+  const getSteps = useCallback(
+    (algorithm: Algorithm, exampleId?: string | null): Step[] => {
+      if (isSessionGraphExampleId(exampleId)) {
+        const graph = getSessionGraph(getSessionGraphIdFromExampleId(exampleId))
+        return graph ? algorithm.generateSteps(locale, undefined, graphToState(graph)) : []
+      }
+      return algorithm.generateSteps(locale, exampleId ?? undefined)
+    },
+    [locale],
+  )
+
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm | null>(initialAlgorithm ?? null)
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     initialAlgorithm?.examples?.[0]?.id ?? null,
   )
   const [steps, setSteps] = useState<Step[]>(() =>
     initialAlgorithm
-      ? initialAlgorithm.generateSteps(locale, initialAlgorithm.examples?.[0]?.id)
+      ? getSteps(initialAlgorithm, initialAlgorithm.examples?.[0]?.id)
       : [],
   )
   const [currentStep, setCurrentStep] = useState(0)
@@ -46,20 +63,20 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     setSelectedAlgorithm(algo)
     const exampleId = algo.examples?.[0]?.id ?? null
     setSelectedExampleId(exampleId)
-    const newSteps = algo.generateSteps(locale, exampleId ?? undefined)
+    const newSteps = getSteps(algo, exampleId)
     setSteps(newSteps)
     setCurrentStep(0)
     autoplayTimerRef.current = setTimeout(() => setIsPlaying(true), 600)
-  }, [locale, clearAutoplayTimer])
+  }, [clearAutoplayTimer, getSteps])
 
   const selectExample = useCallback((exampleId: string) => {
     if (!selectedAlgorithm) return
     clearAutoplayTimer()
     setIsPlaying(false)
     setSelectedExampleId(exampleId)
-    setSteps(selectedAlgorithm.generateSteps(locale, exampleId))
+    setSteps(getSteps(selectedAlgorithm, exampleId))
     setCurrentStep(0)
-  }, [selectedAlgorithm, locale, clearAutoplayTimer])
+  }, [selectedAlgorithm, clearAutoplayTimer, getSteps])
 
   const stepForward = useCallback(() => {
     setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))

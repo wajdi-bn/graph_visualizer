@@ -15,7 +15,15 @@ import Sidebar from '@components/Sidebar'
 import WelcomeScreen from '@components/WelcomeScreen'
 import GraphVisualizer from '@components/GraphVisualizer'
 import CodePanel from '@components/CodePanel'
+import GraphEditorModal from '@components/GraphEditorModal'
 import type { Algorithm } from '@lib/types'
+import {
+  getSessionGraphIdFromExampleId,
+  makeSessionGraphExampleId,
+  readSessionGraphs,
+  SESSION_GRAPHS_CHANGED_EVENT,
+  type SessionGraph,
+} from '@lib/sessionGraphs'
 
 const SIDEBAR_MAX = 260
 const CODEPANEL_MAX = 420
@@ -61,7 +69,9 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     if (typeof document === 'undefined') return 'dark'
     return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
   })
-  const [graphEditorNotice, setGraphEditorNotice] = useState(false)
+  const [sessionGraphs, setSessionGraphs] = useState<SessionGraph[]>([])
+  const [graphEditorOpen, setGraphEditorOpen] = useState(false)
+  const [editingGraphId, setEditingGraphId] = useState<string | null>(null)
   const isMobile = useIsMobile()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [mobileCodePanelOpen, setMobileCodePanelOpen] = useState(false)
@@ -102,6 +112,14 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
   })
 
   useKeyboardShortcuts({ togglePlay, stepForward, stepBackward, onTabChange: setActiveTab })
+
+  useEffect(() => {
+    setSessionGraphs(readSessionGraphs())
+
+    const handleGraphChange = () => setSessionGraphs(readSessionGraphs())
+    window.addEventListener(SESSION_GRAPHS_CHANGED_EVENT, handleGraphChange)
+    return () => window.removeEventListener(SESSION_GRAPHS_CHANGED_EVENT, handleGraphChange)
+  }, [])
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => {
@@ -154,20 +172,29 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     [locale, selectAlgorithmBase, codePanel.expand, updateMetaDescription],
   )
 
-  const openGraphEditor = useCallback(() => {
-    const detail = {
-      algorithmId: selectedAlgorithm?.id ?? null,
-      handled: false,
-    }
+  const openGraphEditor = useCallback((graphId: string | null = null) => {
+    setEditingGraphId(graphId)
+    setGraphEditorOpen(true)
+  }, [])
 
-    window.dispatchEvent(new CustomEvent('algoviz:open-graph-editor', { detail }))
-    window.dispatchEvent(new CustomEvent('open-graph-editor', { detail }))
+  const handleGraphSaved = useCallback(
+    (graph: SessionGraph) => {
+      setSessionGraphs(readSessionGraphs())
+      if (selectedAlgorithm) selectExample(makeSessionGraphExampleId(graph.id))
+    },
+    [selectedAlgorithm, selectExample],
+  )
 
-    if (!detail.handled) {
-      setGraphEditorNotice(true)
-      window.setTimeout(() => setGraphEditorNotice(false), 2600)
-    }
-  }, [selectedAlgorithm?.id])
+  const handleGraphDeleted = useCallback(
+    (graphId: string) => {
+      setSessionGraphs(readSessionGraphs())
+      if (getSessionGraphIdFromExampleId(selectedExampleId) === graphId) {
+        const fallbackExampleId = selectedAlgorithm?.examples?.[0]?.id
+        if (fallbackExampleId) selectExample(fallbackExampleId)
+      }
+    },
+    [selectedAlgorithm, selectedExampleId, selectExample],
+  )
 
   useEffect(() => {
     const handlePopState = () => {
@@ -237,8 +264,10 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         theme={theme}
         onToggleTheme={toggleTheme}
         selectedExampleId={selectedExampleId}
+        sessionGraphs={sessionGraphs}
         onExampleChange={selectExample}
         onCreateGraph={openGraphEditor}
+        onEditGraph={(graphId) => openGraphEditor(graphId)}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -506,16 +535,15 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         </div>
       )}
 
-      {graphEditorNotice && (
-        <div
-          className="fixed bottom-4 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-white/12 bg-black px-3 py-2 text-xs text-neutral-300 shadow-2xl shadow-black/50"
-          role="status"
-        >
-          {locale === 'fr'
-            ? 'Aucun editeur de graphe existant n est connecte.'
-            : 'No existing graph editor is connected.'}
-        </div>
-      )}
+      <GraphEditorModal
+        open={graphEditorOpen}
+        locale={locale}
+        graphs={sessionGraphs}
+        initialGraphId={editingGraphId}
+        onClose={() => setGraphEditorOpen(false)}
+        onSaved={handleGraphSaved}
+        onDeleted={handleGraphDeleted}
+      />
     </div>
   )
 }

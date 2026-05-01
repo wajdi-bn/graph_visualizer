@@ -1,5 +1,6 @@
 import type {
   Algorithm,
+  AlgorithmGraphInput,
   GraphEdge,
   GraphNode,
   GraphSetState,
@@ -86,6 +87,28 @@ function getWeightedDemo(exampleId?: string): { nodes: GraphNode[]; edges: Graph
   return { nodes: weightedNodes, edges: weightedEdges }
 }
 
+function isDirectedGraph(graph: AlgorithmGraphInput) {
+  return Boolean(graph.directed || graph.edges.some((edge) => edge.directed))
+}
+
+function graphFromInput(
+  graph: AlgorithmGraphInput,
+  options: { directed?: boolean; defaultWeight?: boolean } = {},
+): { nodes: GraphNode[]; edges: GraphEdge[]; directed: boolean } {
+  const directed = options.directed ?? isDirectedGraph(graph)
+  const nodes = graph.nodes.map((node) => ({ ...node }))
+  const nodeIds = new Set(nodes.map((node) => node.id))
+  const edges = graph.edges
+    .filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to) && edge.from !== edge.to)
+    .map((edge) => ({
+      ...edge,
+      weight: edge.weight ?? (options.defaultWeight ? 1 : undefined),
+      directed,
+    }))
+
+  return { nodes, edges, directed }
+}
+
 function label(nodes: GraphNode[], id: number) {
   return nodes.find((node) => node.id === id)?.label ?? String(id)
 }
@@ -120,6 +143,66 @@ function baseGraph(
     currentEdge: null,
     ...extra,
   }
+}
+
+function incompatibilityStep(
+  locale: string,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  directed: boolean,
+  messageEn: string,
+  messageFr: string,
+): Step[] {
+  return [
+    {
+      graph: baseGraph(nodes, edges, {
+        directed,
+        phase: d(locale, 'Graph is not compatible', 'Graphe incompatible'),
+      }),
+      description: d(locale, messageEn, messageFr),
+      variables: {
+        nodes: nodes.length,
+        edges: edges.length,
+        directed,
+      },
+    },
+  ]
+}
+
+function requireNodes(locale: string, nodes: GraphNode[], edges: GraphEdge[], directed = false) {
+  if (nodes.length > 0) return null
+  return incompatibilityStep(
+    locale,
+    nodes,
+    edges,
+    directed,
+    'Add at least one vertex before running this algorithm.',
+    'Ajoutez au moins un sommet avant de lancer cet algorithme.',
+  )
+}
+
+function requireUndirectedCustom(
+  locale: string,
+  graph: AlgorithmGraphInput | undefined,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  messageEn: string,
+  messageFr: string,
+) {
+  if (!graph || !isDirectedGraph(graph)) return null
+  return incompatibilityStep(locale, nodes, edges, true, messageEn, messageFr)
+}
+
+function requireDirectedCustom(
+  locale: string,
+  graph: AlgorithmGraphInput | undefined,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  messageEn: string,
+  messageFr: string,
+) {
+  if (!graph || isDirectedGraph(graph)) return null
+  return incompatibilityStep(locale, nodes, edges, false, messageEn, messageFr)
 }
 
 function formatDistances(nodes: GraphNode[], distances: Record<number, number | string>) {
@@ -192,9 +275,27 @@ Dijkstra finds shortest paths from one source in a weighted graph with non-negat
 Time Complexity: O((V + E) log V)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
-  generateSteps(locale = 'en', exampleId) {
-    const { nodes, edges } = getWeightedDemo(exampleId)
-    const adj = adjacency(edges)
+  generateSteps(locale = 'en', exampleId, customGraph) {
+    const demo = customGraph
+      ? graphFromInput(customGraph, { defaultWeight: true })
+      : { ...getWeightedDemo(exampleId), directed: false }
+    const { nodes, edges, directed } = demo
+    const incompatible = requireNodes(locale, nodes, edges, directed)
+    if (incompatible) return incompatible
+    const negativeEdge = edges.find((edge) => (edge.weight ?? 1) < 0)
+    if (customGraph && negativeEdge) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        directed,
+        'Dijkstra requires non-negative edge weights. Use Bellman-Ford for graphs with negative weights.',
+        'Dijkstra exige des poids non negatifs. Utilisez Bellman-Ford pour les graphes avec poids negatifs.',
+      )
+    }
+    const source = nodes[0].id
+    const sourceLabel = label(nodes, source)
+    const adj = adjacency(edges, directed)
     const distances: Record<number, number | string> = {}
     const predecessors: Record<number, number | null> = {}
     const visited = new Set<number>()
@@ -204,24 +305,25 @@ Space Complexity: O(V)`,
     const steps: Step[] = []
 
     for (const node of nodes) {
-      distances[node.id] = node.id === 0 ? 0 : inf
+      distances[node.id] = node.id === source ? 0 : inf
       predecessors[node.id] = null
     }
 
     steps.push({
       graph: baseGraph(nodes, edges, {
-        currentNode: 0,
+        directed,
+        currentNode: source,
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
-        phase: d(locale, 'Initialize distances from A', 'Initialiser les distances depuis A'),
+        phase: d(locale, `Initialize distances from ${sourceLabel}`, `Initialiser les distances depuis ${sourceLabel}`),
       }),
       description: d(
         locale,
-        'Start at A. Its distance is 0; every other vertex is unknown.',
-        'On commence en A. Sa distance vaut 0; toutes les autres sont inconnues.',
+        `Start at ${sourceLabel}. Its distance is 0; every other vertex is unknown.`,
+        `On commence en ${sourceLabel}. Sa distance vaut 0; toutes les autres sont inconnues.`,
       ),
       codeLine: 5,
-      variables: { source: 'A', distances: formatDistances(nodes, distances) },
+      variables: { source: sourceLabel, distances: formatDistances(nodes, distances) },
     })
 
     while (visited.size < nodes.length) {
@@ -261,7 +363,7 @@ Space Complexity: O(V)`,
         variables: { vertex: label(nodes, current), distance: best },
       })
 
-      for (const { node: neighbor, weight } of adj[current]) {
+      for (const { node: neighbor, weight } of adj[current] ?? []) {
         if (visited.has(neighbor)) continue
         const oldDistance = distances[neighbor]
         const nextDistance = (distances[current] as number) + weight
@@ -359,15 +461,15 @@ Bellman-Ford finds shortest paths from a source even when directed edges have ne
 Time Complexity: O(VE)
 Space Complexity: O(V)`,
   examples: negativeWeightedExampleOptions,
-  generateSteps(locale = 'en') {
-    const nodes: GraphNode[] = [
+  generateSteps(locale = 'en', _exampleId, customGraph) {
+    let nodes: GraphNode[] = [
       { id: 0, label: 'S', x: 70, y: 165 },
       { id: 1, label: 'A', x: 210, y: 65 },
       { id: 2, label: 'B', x: 210, y: 265 },
       { id: 3, label: 'C', x: 370, y: 80 },
       { id: 4, label: 'D', x: 390, y: 250 },
     ]
-    const edges: GraphEdge[] = [
+    let edges: GraphEdge[] = [
       { from: 0, to: 1, weight: 6, directed: true },
       { from: 0, to: 2, weight: 7, directed: true },
       { from: 1, to: 2, weight: 8, directed: true },
@@ -378,6 +480,26 @@ Space Complexity: O(V)`,
       { from: 3, to: 1, weight: -2, directed: true },
       { from: 4, to: 3, weight: 7, directed: true },
     ]
+    if (customGraph) {
+      const custom = graphFromInput(customGraph, {
+        directed: isDirectedGraph(customGraph),
+        defaultWeight: true,
+      })
+      const incompatible = requireDirectedCustom(
+        locale,
+        customGraph,
+        custom.nodes,
+        custom.edges,
+        'Bellman-Ford needs a directed graph. Turn on Directed graph in the editor.',
+        'Bellman-Ford exige un graphe oriente. Activez Graphe oriente dans l editeur.',
+      )
+      if (incompatible) return incompatible
+      nodes = custom.nodes
+      edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
+    }
+    const source = nodes[0]?.id
+    if (source == null) return requireNodes(locale, nodes, edges, true)!
+    const sourceLabel = label(nodes, source)
     const distances: Record<number, number | string> = {}
     const predecessors: Record<number, number | null> = {}
     const selectedEdges: [number, number][] = []
@@ -385,25 +507,25 @@ Space Complexity: O(V)`,
     const steps: Step[] = []
 
     for (const node of nodes) {
-      distances[node.id] = node.id === 0 ? 0 : inf
+      distances[node.id] = node.id === source ? 0 : inf
       predecessors[node.id] = null
     }
 
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed: true,
-        currentNode: 0,
+        currentNode: source,
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
         phase: d(locale, 'Initialization', 'Initialisation'),
       }),
       description: d(
         locale,
-        'Initialize Bellman-Ford from source S.',
-        'Initialiser Bellman-Ford depuis la source S.',
+        `Initialize Bellman-Ford from source ${sourceLabel}.`,
+        `Initialiser Bellman-Ford depuis la source ${sourceLabel}.`,
       ),
       codeLine: 4,
-      variables: { source: 'S', distances: formatDistances(nodes, distances) },
+      variables: { source: sourceLabel, distances: formatDistances(nodes, distances) },
     })
 
     for (let pass = 1; pass < nodes.length; pass++) {
@@ -513,15 +635,15 @@ Bellman's dynamic-programming shortest-path recurrence computes the best distanc
 Time Complexity: O(VE)
 Space Complexity: O(V)`,
   examples: negativeWeightedExampleOptions,
-  generateSteps(locale = 'en') {
-    const nodes: GraphNode[] = [
+  generateSteps(locale = 'en', _exampleId, customGraph) {
+    let nodes: GraphNode[] = [
       { id: 0, label: 'S', x: 55, y: 170 },
       { id: 1, label: 'A', x: 170, y: 80 },
       { id: 2, label: 'B', x: 185, y: 260 },
       { id: 3, label: 'C', x: 330, y: 165 },
       { id: 4, label: 'T', x: 455, y: 170 },
     ]
-    const edges: GraphEdge[] = [
+    let edges: GraphEdge[] = [
       { from: 0, to: 1, weight: 3, directed: true },
       { from: 0, to: 2, weight: 8, directed: true },
       { from: 1, to: 2, weight: 2, directed: true },
@@ -531,27 +653,47 @@ Space Complexity: O(V)`,
       { from: 2, to: 4, weight: 12, directed: true },
       { from: 3, to: 4, weight: 6, directed: true },
     ]
+    if (customGraph) {
+      const custom = graphFromInput(customGraph, {
+        directed: isDirectedGraph(customGraph),
+        defaultWeight: true,
+      })
+      const incompatible = requireDirectedCustom(
+        locale,
+        customGraph,
+        custom.nodes,
+        custom.edges,
+        'Bellman needs a directed graph. Turn on Directed graph in the editor.',
+        'Bellman exige un graphe oriente. Activez Graphe oriente dans l editeur.',
+      )
+      if (incompatible) return incompatible
+      nodes = custom.nodes
+      edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
+    }
+    const source = nodes[0]?.id
+    if (source == null) return requireNodes(locale, nodes, edges, true)!
+    const sourceLabel = label(nodes, source)
     let previous: Record<number, number | string> = {}
     const predecessors: Record<number, number | null> = {}
     const steps: Step[] = []
 
     for (const node of nodes) {
-      previous[node.id] = node.id === 0 ? 0 : inf
+      previous[node.id] = node.id === source ? 0 : inf
       predecessors[node.id] = null
     }
 
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed: true,
-        currentNode: 0,
+        currentNode: source,
         distances: cloneRecord(previous),
         predecessors: cloneRecord(predecessors),
         phase: d(locale, 'k = 0 edges', 'k = 0 arete'),
       }),
       description: d(
         locale,
-        'With at most 0 edges, only the source S has distance 0.',
-        'Avec au plus 0 arete, seule la source S a une distance de 0.',
+        `With at most 0 edges, only the source ${sourceLabel} has distance 0.`,
+        `Avec au plus 0 arete, seule la source ${sourceLabel} a une distance de 0.`,
       ),
       codeLine: 3,
       variables: { k: 0, distances: formatDistances(nodes, previous) },
@@ -642,10 +784,23 @@ Kruskal builds a minimum spanning tree by scanning edges from lightest to heavie
 Time Complexity: O(E log E)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
-  generateSteps(locale = 'en', exampleId) {
-    const demo = getWeightedDemo(exampleId)
+  generateSteps(locale = 'en', exampleId, customGraph) {
+    const demo = customGraph
+      ? graphFromInput(customGraph, { directed: false, defaultWeight: true })
+      : { ...getWeightedDemo(exampleId), directed: false }
     const nodes = demo.nodes
     const edges = [...demo.edges].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
+    const incompatible =
+      requireNodes(locale, nodes, edges, false) ??
+      requireUndirectedCustom(
+        locale,
+        customGraph,
+        nodes,
+        edges,
+        'Kruskal builds an undirected minimum spanning tree. Turn off Directed graph in the editor.',
+        'Kruskal construit un arbre couvrant minimal non oriente. Desactivez Graphe oriente dans l editeur.',
+      )
+    if (incompatible) return incompatible
     const parent: Record<number, number> = {}
     const rank: Record<number, number> = {}
     const selectedEdges: [number, number][] = []
@@ -762,8 +917,24 @@ Prim grows a minimum spanning tree from one start vertex, always adding the chea
 Time Complexity: O(E log V)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
-  generateSteps(locale = 'en', exampleId) {
-    const { nodes, edges } = getWeightedDemo(exampleId)
+  generateSteps(locale = 'en', exampleId, customGraph) {
+    const demo = customGraph
+      ? graphFromInput(customGraph, { directed: false, defaultWeight: true })
+      : { ...getWeightedDemo(exampleId), directed: false }
+    const { nodes, edges } = demo
+    const incompatible =
+      requireNodes(locale, nodes, edges, false) ??
+      requireUndirectedCustom(
+        locale,
+        customGraph,
+        nodes,
+        edges,
+        'Prim builds an undirected minimum spanning tree. Turn off Directed graph in the editor.',
+        'Prim construit un arbre couvrant minimal non oriente. Desactivez Graphe oriente dans l editeur.',
+      )
+    if (incompatible) return incompatible
+    const source = nodes[0].id
+    const sourceLabel = label(nodes, source)
     const adj = adjacency(edges)
     const inTree = new Set<number>()
     const key: Record<number, number | string> = {}
@@ -773,24 +944,24 @@ Space Complexity: O(V)`,
     const steps: Step[] = []
 
     for (const node of nodes) {
-      key[node.id] = node.id === 0 ? 0 : inf
+      key[node.id] = node.id === source ? 0 : inf
       parent[node.id] = null
     }
 
     steps.push({
       graph: baseGraph(nodes, edges, {
-        currentNode: 0,
+        currentNode: source,
         distances: cloneRecord(key),
         predecessors: cloneRecord(parent),
-        phase: d(locale, 'Start the tree at A', 'Demarrer l arbre en A'),
+        phase: d(locale, `Start the tree at ${sourceLabel}`, `Demarrer l arbre en ${sourceLabel}`),
       }),
       description: d(
         locale,
-        'Start Prim from A. Key values store the cheapest known edge into the tree.',
-        'On demarre Prim depuis A. Les cles stockent la moins chere arete connue vers l arbre.',
+        `Start Prim from ${sourceLabel}. Key values store the cheapest known edge into the tree.`,
+        `On demarre Prim depuis ${sourceLabel}. Les cles stockent la moins chere arete connue vers l arbre.`,
       ),
       codeLine: 5,
-      variables: { start: 'A', keys: formatDistances(nodes, key) },
+      variables: { start: sourceLabel, keys: formatDistances(nodes, key) },
     })
 
     while (inTree.size < nodes.length) {
@@ -825,7 +996,11 @@ Space Complexity: O(V)`,
         }),
         description:
           parent[current] == null
-            ? d(locale, 'A is the first vertex in the tree.', 'A est le premier sommet dans l arbre.')
+            ? d(
+                locale,
+                `${label(nodes, current)} is the first vertex in the tree.`,
+                `${label(nodes, current)} est le premier sommet dans l arbre.`,
+              )
             : d(
                 locale,
                 `Add ${label(nodes, current)} through ${label(nodes, parent[current]!)}-${label(nodes, current)} (weight ${key[current]}).`,
@@ -835,7 +1010,7 @@ Space Complexity: O(V)`,
         variables: { vertex: label(nodes, current), key: key[current] },
       })
 
-      for (const { node: neighbor, weight } of adj[current]) {
+      for (const { node: neighbor, weight } of adj[current] ?? []) {
         if (inTree.has(neighbor)) continue
         if (key[neighbor] === inf || weight < (key[neighbor] as number)) {
           key[neighbor] = weight
@@ -954,8 +1129,22 @@ Connected components partition an undirected graph into maximal groups where eve
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
   examples: componentExampleOptions,
-  generateSteps(locale = 'en', exampleId) {
-    const { nodes, edges } = getComponentDemo(exampleId)
+  generateSteps(locale = 'en', exampleId, customGraph) {
+    const demo = customGraph
+      ? graphFromInput(customGraph, { directed: false })
+      : { ...getComponentDemo(exampleId), directed: false }
+    const { nodes, edges } = demo
+    const incompatible =
+      requireNodes(locale, nodes, edges, false) ??
+      requireUndirectedCustom(
+        locale,
+        customGraph,
+        nodes,
+        edges,
+        'Connected components is defined here for undirected graphs. Turn off Directed graph in the editor.',
+        'Les composantes connexes sont definies ici pour les graphes non orientes. Desactivez Graphe oriente dans l editeur.',
+      )
+    if (incompatible) return incompatible
     const adj = adjacency(edges)
     const visited = new Set<number>()
     const visitedNodes: number[] = []
@@ -1062,8 +1251,8 @@ Kosaraju finds strongly connected components in a directed graph with two DFS pa
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
   examples: stronglyConnectedExampleOptions,
-  generateSteps(locale = 'en') {
-    const nodes: GraphNode[] = [
+  generateSteps(locale = 'en', _exampleId, customGraph) {
+    let nodes: GraphNode[] = [
       { id: 0, label: 'A', x: 95, y: 85 },
       { id: 1, label: 'B', x: 235, y: 65 },
       { id: 2, label: 'C', x: 175, y: 205 },
@@ -1071,7 +1260,7 @@ Space Complexity: O(V)`,
       { id: 4, label: 'E', x: 435, y: 245 },
       { id: 5, label: 'F', x: 280, y: 280 },
     ]
-    const edges: GraphEdge[] = [
+    let edges: GraphEdge[] = [
       { from: 0, to: 1, directed: true },
       { from: 1, to: 2, directed: true },
       { from: 2, to: 0, directed: true },
@@ -1080,6 +1269,22 @@ Space Complexity: O(V)`,
       { from: 4, to: 5, directed: true },
       { from: 5, to: 3, directed: true },
     ]
+    if (customGraph) {
+      const custom = graphFromInput(customGraph, { directed: isDirectedGraph(customGraph) })
+      const incompatible =
+        requireNodes(locale, custom.nodes, custom.edges, custom.directed) ??
+        requireDirectedCustom(
+          locale,
+          customGraph,
+          custom.nodes,
+          custom.edges,
+          'Kosaraju needs a directed graph. Turn on Directed graph in the editor.',
+          'Kosaraju exige un graphe oriente. Activez Graphe oriente dans l editeur.',
+        )
+      if (incompatible) return incompatible
+      nodes = custom.nodes
+      edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
+    }
     const reversedEdges = edges.map((edge) => ({ from: edge.to, to: edge.from, directed: true }))
     const adj = adjacency(edges, true)
     const revAdj = adjacency(reversedEdges, true)
@@ -1213,8 +1418,8 @@ An Eulerian path uses every edge exactly once. This visualization uses Hierholze
 Time Complexity: O(V + E)
 Space Complexity: O(E)`,
   examples: eulerianExampleOptions,
-  generateSteps(locale = 'en') {
-    const nodes: GraphNode[] = [
+  generateSteps(locale = 'en', _exampleId, customGraph) {
+    let nodes: GraphNode[] = [
       { id: 0, label: 'A', x: 95, y: 90 },
       { id: 1, label: 'B', x: 250, y: 55 },
       { id: 2, label: 'C', x: 190, y: 190 },
@@ -1222,7 +1427,7 @@ Space Complexity: O(E)`,
       { id: 4, label: 'E', x: 420, y: 285 },
       { id: 5, label: 'F', x: 260, y: 300 },
     ]
-    const edges: GraphEdge[] = [
+    let edges: GraphEdge[] = [
       { from: 0, to: 1 },
       { from: 1, to: 2 },
       { from: 2, to: 0 },
@@ -1231,8 +1436,69 @@ Space Complexity: O(E)`,
       { from: 4, to: 5 },
       { from: 5, to: 2 },
     ]
+    if (customGraph) {
+      const custom = graphFromInput(customGraph, { directed: false })
+      const incompatible =
+        requireNodes(locale, custom.nodes, custom.edges, false) ??
+        requireUndirectedCustom(
+          locale,
+          customGraph,
+          custom.nodes,
+          custom.edges,
+          'Eulerian path is implemented here for undirected graphs. Turn off Directed graph in the editor.',
+          'Le chemin eulerien est implemente ici pour les graphes non orientes. Desactivez Graphe oriente dans l editeur.',
+        )
+      if (incompatible) return incompatible
+      nodes = custom.nodes
+      edges = custom.edges
+    }
+    const degree: Record<number, number> = {}
+    for (const node of nodes) degree[node.id] = 0
+    for (const edge of edges) {
+      degree[edge.from] = (degree[edge.from] ?? 0) + 1
+      degree[edge.to] = (degree[edge.to] ?? 0) + 1
+    }
+    const oddNodes = nodes.filter((node) => degree[node.id] % 2 === 1)
+    const nonIsolatedNodes = nodes.filter((node) => degree[node.id] > 0)
+    if (customGraph && oddNodes.length !== 0 && oddNodes.length !== 2) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        false,
+        'An undirected graph has an Eulerian path only when it has exactly 0 or 2 odd-degree vertices.',
+        'Un graphe non oriente a un chemin eulerien seulement avec exactement 0 ou 2 sommets de degre impair.',
+      )
+    }
+    if (customGraph && nonIsolatedNodes.length > 0) {
+      const adj = adjacency(edges)
+      const reachable = new Set<number>()
+      const stack = [nonIsolatedNodes[0].id]
+      reachable.add(nonIsolatedNodes[0].id)
+      while (stack.length > 0) {
+        const current = stack.pop()!
+        for (const { node: neighbor } of adj[current] ?? []) {
+          if (!reachable.has(neighbor)) {
+            reachable.add(neighbor)
+            stack.push(neighbor)
+          }
+        }
+      }
+      if (nonIsolatedNodes.some((node) => !reachable.has(node.id))) {
+        return incompatibilityStep(
+          locale,
+          nodes,
+          edges,
+          false,
+          'All non-isolated vertices must be connected for an Eulerian path.',
+          'Tous les sommets non isoles doivent etre connectes pour un chemin eulerien.',
+        )
+      }
+    }
+    const source = oddNodes[0]?.id ?? nonIsolatedNodes[0]?.id ?? nodes[0].id
+    const sourceLabel = label(nodes, source)
     const used = new Set<string>()
-    const stack = [0]
+    const stack = [source]
     const path: number[] = []
     const visitedEdges: [number, number][] = []
     const steps: Step[] = []
@@ -1242,18 +1508,25 @@ Space Complexity: O(E)`,
 
     steps.push({
       graph: baseGraph(nodes, edges, {
-        currentNode: 0,
+        currentNode: source,
         stack: [...stack],
         order: [...path],
-        phase: d(locale, 'All degrees are even', 'Tous les degres sont pairs'),
+        phase:
+          oddNodes.length === 2
+            ? d(locale, 'Two odd-degree vertices', 'Deux sommets de degre impair')
+            : d(locale, 'All degrees are even', 'Tous les degres sont pairs'),
       }),
       description: d(
         locale,
-        'Every vertex has even degree, so an Eulerian circuit exists. Start at A.',
-        'Chaque sommet a un degre pair, donc un circuit eulerien existe. On commence en A.',
+        oddNodes.length === 2
+          ? `Exactly two vertices have odd degree, so an Eulerian path exists. Start at ${sourceLabel}.`
+          : `Every non-isolated vertex has even degree, so an Eulerian circuit exists. Start at ${sourceLabel}.`,
+        oddNodes.length === 2
+          ? `Exactement deux sommets ont un degre impair, donc un chemin eulerien existe. On commence en ${sourceLabel}.`
+          : `Chaque sommet non isole a un degre pair, donc un circuit eulerien existe. On commence en ${sourceLabel}.`,
       ),
       codeLine: 2,
-      variables: { start: 'A' },
+      variables: { start: sourceLabel },
     })
 
     while (stack.length > 0) {
@@ -1340,8 +1613,8 @@ Welsh-Powell greedily colors vertices in decreasing degree order, assigning the 
 Time Complexity: O(V^2)
 Space Complexity: O(V)`,
   examples: coloringExampleOptions,
-  generateSteps(locale = 'en') {
-    const nodes: GraphNode[] = [
+  generateSteps(locale = 'en', _exampleId, customGraph) {
+    let nodes: GraphNode[] = [
       { id: 0, label: 'A', x: 110, y: 65 },
       { id: 1, label: 'B', x: 260, y: 55 },
       { id: 2, label: 'C', x: 405, y: 100 },
@@ -1349,7 +1622,7 @@ Space Complexity: O(V)`,
       { id: 4, label: 'E', x: 260, y: 190 },
       { id: 5, label: 'F', x: 405, y: 265 },
     ]
-    const edges: GraphEdge[] = [
+    let edges: GraphEdge[] = [
       { from: 0, to: 1 },
       { from: 0, to: 3 },
       { from: 0, to: 4 },
@@ -1360,6 +1633,22 @@ Space Complexity: O(V)`,
       { from: 3, to: 4 },
       { from: 4, to: 5 },
     ]
+    if (customGraph) {
+      const custom = graphFromInput(customGraph, { directed: false })
+      const incompatible =
+        requireNodes(locale, custom.nodes, custom.edges, false) ??
+        requireUndirectedCustom(
+          locale,
+          customGraph,
+          custom.nodes,
+          custom.edges,
+          'Welsh-Powell coloring is implemented here for undirected graphs. Turn off Directed graph in the editor.',
+          'La coloration Welsh-Powell est implementee ici pour les graphes non orientes. Desactivez Graphe oriente dans l editeur.',
+        )
+      if (incompatible) return incompatible
+      nodes = custom.nodes
+      edges = custom.edges
+    }
     const adj = adjacency(edges)
     const order = [...nodes]
       .sort((a, b) => (adj[b.id]?.length ?? 0) - (adj[a.id]?.length ?? 0))
@@ -1482,8 +1771,8 @@ Space Complexity: O(V)`,
     { id: 'cycle-checks', label: { en: 'Cycle checks', fr: 'Tests de cycle' } },
     { id: 'two-clusters', label: { en: 'Two clusters', fr: 'Deux groupes' } },
   ],
-  generateSteps(locale = 'en', exampleId) {
-    const nodes: GraphNode[] = [
+  generateSteps(locale = 'en', exampleId, customGraph) {
+    let nodes: GraphNode[] = [
       { id: 0, label: '0', x: 80, y: 95 },
       { id: 1, label: '1', x: 200, y: 75 },
       { id: 2, label: '2', x: 325, y: 95 },
@@ -1492,7 +1781,7 @@ Space Complexity: O(V)`,
       { id: 5, label: '5', x: 285, y: 260 },
       { id: 6, label: '6', x: 420, y: 285 },
     ]
-    const operations: [number, number][] =
+    let operations: [number, number][] =
       exampleId === 'two-clusters'
         ? [
             [0, 1],
@@ -1512,11 +1801,32 @@ Space Complexity: O(V)`,
             [0, 3],
             [3, 6],
           ]
-    const edges: GraphEdge[] = operations.map(([from, to], index) => ({
+    let edges: GraphEdge[] = operations.map(([from, to], index) => ({
       from,
       to,
       label: `u${index + 1}`,
     }))
+    if (customGraph) {
+      const custom = graphFromInput(customGraph, { directed: false })
+      const incompatible =
+        requireNodes(locale, custom.nodes, custom.edges, false) ??
+        requireUndirectedCustom(
+          locale,
+          customGraph,
+          custom.nodes,
+          custom.edges,
+          'Union-Find cycle checks are implemented here for undirected graphs. Turn off Directed graph in the editor.',
+          'Les tests Union-Find sont implementes ici pour les graphes non orientes. Desactivez Graphe oriente dans l editeur.',
+        )
+      if (incompatible) return incompatible
+      nodes = custom.nodes
+      operations = custom.edges.map((edge) => [edge.from, edge.to])
+      edges = custom.edges.map((edge, index) => ({
+        ...edge,
+        label: edge.label ?? `u${index + 1}`,
+        directed: false,
+      }))
+    }
     const parent: Record<number, number> = {}
     const rank: Record<number, number> = {}
     const selectedEdges: [number, number][] = []

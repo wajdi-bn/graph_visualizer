@@ -67,6 +67,36 @@ function endpoint(fromX: number, fromY: number, toX: number, toY: number, offset
   }
 }
 
+function hexToRgb(color: string) {
+  const normalized = color.trim()
+  const shortMatch = /^#([0-9a-f]{3})$/i.exec(normalized)
+  if (shortMatch) {
+    const [, value] = shortMatch
+    return {
+      r: parseInt(value[0] + value[0], 16),
+      g: parseInt(value[1] + value[1], 16),
+      b: parseInt(value[2] + value[2], 16),
+    }
+  }
+
+  const longMatch = /^#([0-9a-f]{6})$/i.exec(normalized)
+  if (!longMatch) return null
+  const [, value] = longMatch
+  return {
+    r: parseInt(value.slice(0, 2), 16),
+    g: parseInt(value.slice(2, 4), 16),
+    b: parseInt(value.slice(4, 6), 16),
+  }
+}
+
+function readableTextColor(fill: string | undefined) {
+  if (!fill) return 'var(--graph-node-text, #fff)'
+  const rgb = hexToRgb(fill)
+  if (!rgb) return 'var(--graph-node-text, #fff)'
+  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
+  return luminance > 0.58 ? '#0f172a' : '#ffffff'
+}
+
 export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizerProps) {
   const t = translations[locale]
   const { graph } = step
@@ -218,6 +248,11 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
               : isVisited || nodeState === 'visited' || nodeState === 'component'
                 ? 'var(--graph-stroke-visited, #777)'
                 : 'var(--graph-stroke-default, #333)'
+          const textFill = isCurrent
+            ? 'var(--graph-current-text, #000)'
+            : customColor
+              ? readableTextColor(customColor)
+              : 'var(--graph-node-text, #fff)'
 
           return (
             <g key={node.id}>
@@ -262,7 +297,7 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
                 y={node.y}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fill={isCurrent ? 'var(--graph-current-text, #000)' : 'var(--graph-node-text, #fff)'}
+                fill={textFill}
                 fontSize="13"
                 fontWeight="700"
                 fontFamily="Inter, system-ui, sans-serif"

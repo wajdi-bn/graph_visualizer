@@ -3,6 +3,7 @@ import type { Locale, Translations } from '@i18n/translations'
 import { getAlgorithmName, getCategoryName, locales, localeNames } from '@i18n/translations'
 import Controls from '@components/Controls'
 import GraphExamplePicker from '@components/GraphExamplePicker'
+import type { SessionGraph } from '@lib/sessionGraphs'
 
 interface HeaderProps {
   locale: Locale
@@ -27,8 +28,10 @@ interface HeaderProps {
   theme: 'dark' | 'light'
   onToggleTheme: () => void
   selectedExampleId: string | null
+  sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onEditGraph: (graphId: string) => void
 }
 
 function getLocaleUrl(targetLocale: Locale, algorithmId?: string) {
@@ -59,8 +62,10 @@ export default function Header({
   theme,
   onToggleTheme,
   selectedExampleId,
+  sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onEditGraph,
 }: HeaderProps) {
   const algorithmName = selectedAlgorithm
     ? getAlgorithmName(locale, selectedAlgorithm.id, selectedAlgorithm.name)
@@ -165,8 +170,10 @@ export default function Header({
             locale={locale}
             selectedAlgorithm={selectedAlgorithm}
             selectedExampleId={selectedExampleId}
+            sessionGraphs={sessionGraphs}
             onExampleChange={onExampleChange}
             onCreateGraph={onCreateGraph}
+            onEditGraph={onEditGraph}
           />
         )}
 

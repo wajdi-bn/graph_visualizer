@@ -80,6 +80,12 @@ export interface AlgorithmExample {
   }
 }
 
+export interface AlgorithmGraphInput {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  directed?: boolean
+}
+
 export interface Algorithm {
   id: string
   name: string
@@ -89,7 +95,7 @@ export interface Algorithm {
   code: string
   visualization: VisualizationType
   examples?: AlgorithmExample[]
-  generateSteps: (locale?: string, exampleId?: string) => Step[]
+  generateSteps: (locale?: string, exampleId?: string, customGraph?: AlgorithmGraphInput) => Step[]
 }
 
 export interface Category {

@@ -7,30 +7,43 @@ import {
   graphExampleCatalog,
   type GraphExampleCatalogItem,
 } from '@lib/graphExamples'
+import {
+  getSessionGraphIdFromExampleId,
+  makeSessionGraphExampleId,
+  type SessionGraph,
+} from '@lib/sessionGraphs'
 
 interface GraphExamplePickerProps {
   locale: Locale
   selectedAlgorithm: Algorithm
   selectedExampleId: string | null
+  sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onEditGraph: (graphId: string) => void
 }
 
 export default function GraphExamplePicker({
   locale,
   selectedAlgorithm,
   selectedExampleId,
+  sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onEditGraph,
 }: GraphExamplePickerProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonLabel = locale === 'fr' ? 'Liste des graphes' : 'Graph list'
   const createLabel = locale === 'fr' ? 'Creer un graphe' : 'Create graph'
+  const selectedSessionGraphId = getSessionGraphIdFromExampleId(selectedExampleId)
+  const currentSessionGraph =
+    sessionGraphs.find((graph) => graph.id === selectedSessionGraphId) ?? null
   const currentItem =
     graphExampleCatalog.find(
       (item) => getExampleIdForAlgorithm(item, selectedAlgorithm.id) === selectedExampleId,
     ) ?? graphExampleCatalog.find((item) => getExampleIdForAlgorithm(item, selectedAlgorithm.id))
+  const currentLabel = currentSessionGraph?.name ?? currentItem?.label[locale]
 
   useEffect(() => {
     if (!open) return
@@ -67,12 +80,12 @@ export default function GraphExamplePicker({
       >
         <GridIcon />
         <span className="shrink-0">{buttonLabel}</span>
-        {currentItem && (
+        {currentLabel && (
           <>
             <span className="text-neutral-600" aria-hidden="true">
               /
             </span>
-            <span className="truncate text-neutral-500">{currentItem.label[locale]}</span>
+            <span className="truncate text-neutral-500">{currentLabel}</span>
           </>
         )}
         <ChevronIcon open={open} />
@@ -104,6 +117,29 @@ export default function GraphExamplePicker({
                 />
               ))}
 
+              {sessionGraphs.length > 0 && (
+                <div className="col-span-2 md:col-span-3 mt-1 border-t border-white/8 pt-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+                  {locale === 'fr' ? 'Graphes de session' : 'Session graphs'}
+                </div>
+              )}
+
+              {sessionGraphs.map((graph) => (
+                <SessionGraphCard
+                  key={graph.id}
+                  graph={graph}
+                  locale={locale}
+                  selected={graph.id === selectedSessionGraphId}
+                  onSelect={(graphId) => {
+                    onExampleChange(makeSessionGraphExampleId(graphId))
+                    setOpen(false)
+                  }}
+                  onEdit={(graphId) => {
+                    onEditGraph(graphId)
+                    setOpen(false)
+                  }}
+                />
+              ))}
+
               <button
                 type="button"
                 onClick={() => {
@@ -121,7 +157,7 @@ export default function GraphExamplePicker({
                 </div>
                 <div className="text-xs font-semibold text-white">{createLabel}</div>
                 <div className="mt-1 text-[10px] leading-4 text-neutral-500">
-                  {locale === 'fr' ? 'Ouvre l editeur existant' : 'Open existing editor'}
+                  {locale === 'fr' ? 'Demarrer avec un graphe vide' : 'Start with a blank graph'}
                 </div>
               </button>
             </div>
@@ -130,6 +166,146 @@ export default function GraphExamplePicker({
       )}
     </div>
   )
+}
+
+function SessionGraphCard({
+  graph,
+  locale,
+  selected,
+  onSelect,
+  onEdit,
+}: {
+  graph: SessionGraph
+  locale: Locale
+  selected: boolean
+  onSelect: (graphId: string) => void
+  onEdit: (graphId: string) => void
+}) {
+  return (
+    <div
+      className={`min-h-[132px] rounded-lg border p-2.5 text-left transition-all ${
+        selected
+          ? 'border-emerald-400/70 bg-emerald-400/10'
+          : 'border-white/10 bg-white/[0.03] hover:border-white/22 hover:bg-white/8'
+      }`}
+    >
+      <SessionGraphPreview graph={graph} selected={selected} />
+      <div className="mt-2 truncate text-xs font-semibold text-white">{graph.name}</div>
+      <div className="mt-1 line-clamp-1 text-[10px] leading-4 text-neutral-500">
+        {graph.nodes.length} {locale === 'fr' ? 'sommets' : 'nodes'} / {graph.edges.length}{' '}
+        {locale === 'fr' ? 'aretes' : 'edges'}
+      </div>
+      <div className="mt-2 flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => onSelect(graph.id)}
+          className="h-6 flex-1 rounded-md bg-white px-2 text-[10px] font-medium text-black transition-colors hover:bg-neutral-200"
+          aria-current={selected ? 'true' : undefined}
+        >
+          {locale === 'fr' ? 'Ouvrir' : 'Open'}
+        </button>
+        <button
+          type="button"
+          onClick={() => onEdit(graph.id)}
+          className="h-6 rounded-md border border-white/12 bg-white/6 px-2 text-[10px] text-neutral-300 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {locale === 'fr' ? 'Editer' : 'Edit'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SessionGraphPreview({
+  graph,
+  selected,
+}: {
+  graph: SessionGraph
+  selected: boolean
+}) {
+  const markerId = `session-arrow-${graph.id}`
+  const stroke = selected ? '#34d399' : '#737373'
+  const nodeStroke = selected ? '#34d399' : '#a3a3a3'
+  const normalized = normalizePreviewNodes(graph)
+
+  return (
+    <div className="h-[62px] rounded-md border border-white/8 bg-black/40">
+      <svg viewBox="0 0 100 64" className="h-full w-full" aria-hidden="true">
+        <defs>
+          <marker
+            id={markerId}
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="4"
+            markerHeight="4"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={stroke} />
+          </marker>
+        </defs>
+
+        {graph.edges.map((edge, index) => {
+          const from = normalized.find((node) => node.id === edge.from)
+          const to = normalized.find((node) => node.id === edge.to)
+          if (!from || !to) return null
+          return (
+            <line
+              key={`${edge.from}-${edge.to}-${index}`}
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
+              stroke={edge.color ?? stroke}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              markerEnd={graph.directed ? `url(#${markerId})` : undefined}
+            />
+          )
+        })}
+
+        {normalized.map((node) => (
+          <g key={node.id}>
+            <circle
+              cx={node.x}
+              cy={node.y}
+              r="4.8"
+              fill={node.color ?? '#111827'}
+              stroke={nodeStroke}
+              strokeWidth="1.4"
+            />
+            <text
+              x={node.x}
+              y={node.y + 1.5}
+              textAnchor="middle"
+              fill="#f5f5f5"
+              fontSize="4.8"
+              fontWeight="700"
+            >
+              {node.label.slice(0, 2)}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+function normalizePreviewNodes(graph: SessionGraph) {
+  if (graph.nodes.length === 0) return []
+
+  const minX = Math.min(...graph.nodes.map((node) => node.x))
+  const maxX = Math.max(...graph.nodes.map((node) => node.x))
+  const minY = Math.min(...graph.nodes.map((node) => node.y))
+  const maxY = Math.max(...graph.nodes.map((node) => node.y))
+  const width = maxX - minX
+  const height = maxY - minY
+
+  return graph.nodes.map((node) => ({
+    ...node,
+    x: width === 0 ? 50 : 10 + ((node.x - minX) / width) * 80,
+    y: height === 0 ? 32 : 8 + ((node.y - minY) / height) * 48,
+  }))
 }
 
 function GraphExampleCard({
