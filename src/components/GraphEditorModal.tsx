@@ -10,8 +10,9 @@ import {
 } from '@lib/sessionGraphs'
 
 const CANVAS_WIDTH = 500
-const CANVAS_HEIGHT = 340
+const CANVAS_HEIGHT = 420
 const NODE_RADIUS = 22
+const CANVAS_PADDING = 14
 const DEFAULT_NODE_COLOR = '#1e293b'
 const DEFAULT_EDGE_COLOR = '#475569'
 const SELECTED_COLOR = '#22d3ee'
@@ -30,6 +31,15 @@ interface ViewBox {
   y: number
   width: number
   height: number
+}
+
+function defaultViewBox(): ViewBox {
+  return {
+    x: -CANVAS_PADDING,
+    y: -CANVAS_PADDING,
+    width: CANVAS_WIDTH + CANVAS_PADDING * 2,
+    height: CANVAS_HEIGHT + CANVAS_PADDING * 2,
+  }
 }
 
 type ContextMenuState = {
@@ -266,7 +276,7 @@ export default function GraphEditorModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const draftRef = useRef<EditorDraft>(blankDraft())
   const selectionRef = useRef<Selection>(emptySelection())
-  const viewBoxRef = useRef<ViewBox>({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+  const viewBoxRef = useRef<ViewBox>(defaultViewBox())
   const historyRef = useRef<{ past: EditorDraft[]; future: EditorDraft[] }>({ past: [], future: [] })
   const graphsRef = useRef<SessionGraph[]>(graphs)
   const dragRef = useRef<DragState | null>(null)
@@ -278,12 +288,7 @@ export default function GraphEditorModal({
   const [edgeStartId, setEdgeStartId] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
-  const [viewBox, setViewBoxState] = useState<ViewBox>(() => ({
-    x: 0,
-    y: 0,
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-  }))
+  const [viewBox, setViewBoxState] = useState<ViewBox>(() => defaultViewBox())
   const [selectionBox, setSelectionBox] = useState<{
     start: { x: number; y: number }
     end: { x: number; y: number }
@@ -351,7 +356,7 @@ export default function GraphEditorModal({
     setSelectionBox(null)
     setContextMenu(null)
     setNotice('')
-    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    setViewBox(defaultViewBox())
     historyRef.current = { past: [], future: [] }
     setHistory(historyRef.current)
   }, [open, initialGraphId])
@@ -916,7 +921,7 @@ export default function GraphEditorModal({
     setTool('select')
     historyRef.current = { past: [], future: [] }
     setHistory(historyRef.current)
-    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    setViewBox(defaultViewBox())
   }
 
   function createNewGraph() {
@@ -926,7 +931,7 @@ export default function GraphEditorModal({
     setTool('select')
     historyRef.current = { past: [], future: [] }
     setHistory(historyRef.current)
-    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    setViewBox(defaultViewBox())
   }
 
   function clearGraph() {
@@ -966,7 +971,7 @@ export default function GraphEditorModal({
 
   function fitView() {
     if (draftRef.current.nodes.length === 0) {
-      setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+      setViewBox(defaultViewBox())
       return
     }
 
@@ -1055,7 +1060,7 @@ export default function GraphEditorModal({
       aria-modal="true"
       aria-labelledby="graph-editor-title"
     >
-      <div className="flex h-[min(760px,calc(100vh-1rem))] w-[min(1180px,calc(100vw-1rem))] overflow-hidden rounded-lg border border-white/12 bg-black shadow-2xl shadow-black/70">
+      <div className="flex h-[min(840px,calc(100vh-1rem))] w-[min(1220px,calc(100vw-1rem))] overflow-hidden rounded-lg border border-white/12 bg-black shadow-2xl shadow-black/70">
         <aside className="hidden w-[250px] shrink-0 flex-col border-r border-white/8 bg-white/[0.02] md:flex">
           <div className="border-b border-white/8 p-3">
             <div className="flex items-center justify-between gap-2">
@@ -1157,7 +1162,7 @@ export default function GraphEditorModal({
 
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <main className="flex min-w-0 flex-1 flex-col">
-              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/8 px-3 py-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/8 px-3 py-2.5">
                 <ToolButton
                   active={tool === 'select'}
                   label={locale === 'fr' ? 'Selectionner' : 'Select'}
@@ -1247,14 +1252,14 @@ export default function GraphEditorModal({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:bg-cyan-300/12 hover:text-[var(--app-accent)]"
                 >
                   {locale === 'fr' ? 'Importer' : 'Import'}
                 </button>
                 <button
                   type="button"
                   onClick={exportJson}
-                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:bg-cyan-300/12 hover:text-[var(--app-accent)]"
                 >
                   {locale === 'fr' ? 'Exporter' : 'Export'}
                 </button>
@@ -1262,14 +1267,14 @@ export default function GraphEditorModal({
                   type="button"
                   onClick={clearGraph}
                   disabled={draft.nodes.length === 0 && draft.edges.length === 0}
-                  className="ml-auto h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-35"
+                  className="ml-auto h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:bg-cyan-300/12 hover:text-[var(--app-accent)] disabled:pointer-events-none disabled:opacity-35"
                 >
                   {locale === 'fr' ? 'Vider' : 'Clear'}
                 </button>
               </div>
 
-              <div className="min-h-0 flex-1 p-3">
-                <div className="h-full min-h-[320px] overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
+              <div className="min-h-0 flex-1 p-2 sm:p-3">
+                <div className="h-full min-h-[390px] overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
                   <svg
                     ref={svgRef}
                     viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
@@ -1764,8 +1769,8 @@ function ToolButton({
       disabled={disabled}
       className={`flex h-8 w-8 items-center justify-center rounded-md border transition-colors disabled:pointer-events-none disabled:opacity-35 ${
         active
-          ? 'border-cyan-300/60 bg-cyan-300/12 text-cyan-100'
-          : 'border-white/10 bg-white/6 text-neutral-400 hover:bg-white/10 hover:text-white'
+          ? 'border-cyan-300 bg-cyan-300 text-slate-950 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]'
+          : 'border-white/10 bg-white/6 text-[var(--app-text-secondary)] hover:border-cyan-300/55 hover:bg-cyan-300/12 hover:text-[var(--app-accent)]'
       }`}
       aria-label={label}
       title={label}
