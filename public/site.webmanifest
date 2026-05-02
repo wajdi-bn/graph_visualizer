@@ -1,0 +1,17 @@
+{
+  "name": "GraphForce",
+  "short_name": "GraphForce",
+  "description": "Interactive graph algorithm visualizer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x46",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ interface Props {
   description?: string
   ogImage?: string
   canonicalURL?: string
+  bodyClass?: string
 }
 
 const locale = (Astro.props.locale ?? "en") as Locale
@@ -20,9 +21,11 @@ const {
   description = t.siteDescription,
   ogImage = "/og-image.png",
   canonicalURL = new URL(Astro.url.pathname, Astro.site).href,
+  bodyClass = "",
 } = Astro.props
 
-const siteName = "Graph Theory Visualizer"
+const siteName = "GraphForce"
+const htmlClass = bodyClass.includes("allow-page-scroll") ? "allow-page-scroll-root" : ""
 
 // Compute dynamic hreflang alternates
 const pathname = Astro.url.pathname.replace(/\/$/, '') || '/'
@@ -34,7 +37,7 @@ const frAlternateUrl = new URL(basePath === '/' ? '/fr/' : `/fr${basePath}`, Ast
 ---
 
 <!doctype html>
-<html lang={locale}>
+<html lang={locale} class={htmlClass}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -47,7 +50,7 @@ const frAlternateUrl = new URL(basePath === '/' ? '/fr/' : `/fr${basePath}`, Ast
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#020617" />
     <script is:inline>
       (() => {
         const saved = localStorage.getItem('algoviz-theme')
@@ -103,7 +106,7 @@ const frAlternateUrl = new URL(basePath === '/' ? '/fr/' : `/fr${basePath}`, Ast
       })}
     />
   </head>
-  <body class="bg-black text-gray-100 font-sans antialiased">
+  <body class:list={["bg-black text-gray-100 font-sans antialiased", bodyClass]}>
     <!-- Skip to main content link for keyboard/screen reader users -->
     <a href="#main-content" class="skip-link">
       {locale === "fr" ? "Aller au contenu principal" : "Skip to main content"}
@@ -119,6 +122,14 @@ const frAlternateUrl = new URL(basePath === '/' ? '/fr/' : `/fr${basePath}`, Ast
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+
+  html.allow-page-scroll-root,
+  html.allow-page-scroll-root body {
+    min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   /* Skip link — visible only on focus */

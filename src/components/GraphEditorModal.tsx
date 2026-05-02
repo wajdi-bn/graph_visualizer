@@ -10,10 +10,13 @@ import {
 } from '@lib/sessionGraphs'
 
 const CANVAS_WIDTH = 500
-const CANVAS_HEIGHT = 340
+const CANVAS_HEIGHT = 420
 const NODE_RADIUS = 22
-const DEFAULT_NODE_COLOR = '#111827'
-const DEFAULT_EDGE_COLOR = '#737373'
+const CANVAS_PADDING = 14
+const DEFAULT_NODE_COLOR = '#1e293b'
+const DEFAULT_EDGE_COLOR = '#475569'
+const SELECTED_COLOR = '#22d3ee'
+const WAITING_EDGE_COLOR = '#facc15'
 const HISTORY_LIMIT = 80
 
 type EditorTool = 'select' | 'node' | 'edge'
@@ -28,6 +31,15 @@ interface ViewBox {
   y: number
   width: number
   height: number
+}
+
+function defaultViewBox(): ViewBox {
+  return {
+    x: -CANVAS_PADDING,
+    y: -CANVAS_PADDING,
+    width: CANVAS_WIDTH + CANVAS_PADDING * 2,
+    height: CANVAS_HEIGHT + CANVAS_PADDING * 2,
+  }
 }
 
 type ContextMenuState = {
@@ -192,6 +204,25 @@ function colorValue(value: string | undefined, fallback: string) {
   return value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
 }
 
+function hexToRgb(color: string) {
+  const match = /^#([0-9a-f]{6})$/i.exec(color.trim())
+  if (!match) return null
+  const value = match[1]
+  return {
+    r: parseInt(value.slice(0, 2), 16),
+    g: parseInt(value.slice(2, 4), 16),
+    b: parseInt(value.slice(4, 6), 16),
+  }
+}
+
+function readableTextColor(fill: string | undefined) {
+  if (!fill) return '#ffffff'
+  const rgb = hexToRgb(fill)
+  if (!rgb) return '#ffffff'
+  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
+  return luminance > 0.58 ? '#0f172a' : '#ffffff'
+}
+
 function getSelectionEdgeIndexes(draft: EditorDraft, selection: Selection) {
   const selectedNodes = new Set(selection.nodeIds)
   const indexes = new Set(selection.edgeIndexes)
@@ -245,7 +276,7 @@ export default function GraphEditorModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const draftRef = useRef<EditorDraft>(blankDraft())
   const selectionRef = useRef<Selection>(emptySelection())
-  const viewBoxRef = useRef<ViewBox>({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+  const viewBoxRef = useRef<ViewBox>(defaultViewBox())
   const historyRef = useRef<{ past: EditorDraft[]; future: EditorDraft[] }>({ past: [], future: [] })
   const graphsRef = useRef<SessionGraph[]>(graphs)
   const dragRef = useRef<DragState | null>(null)
@@ -257,12 +288,7 @@ export default function GraphEditorModal({
   const [edgeStartId, setEdgeStartId] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
-  const [viewBox, setViewBoxState] = useState<ViewBox>(() => ({
-    x: 0,
-    y: 0,
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-  }))
+  const [viewBox, setViewBoxState] = useState<ViewBox>(() => defaultViewBox())
   const [selectionBox, setSelectionBox] = useState<{
     start: { x: number; y: number }
     end: { x: number; y: number }
@@ -330,7 +356,7 @@ export default function GraphEditorModal({
     setSelectionBox(null)
     setContextMenu(null)
     setNotice('')
-    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    setViewBox(defaultViewBox())
     historyRef.current = { past: [], future: [] }
     setHistory(historyRef.current)
   }, [open, initialGraphId])
@@ -895,7 +921,7 @@ export default function GraphEditorModal({
     setTool('select')
     historyRef.current = { past: [], future: [] }
     setHistory(historyRef.current)
-    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    setViewBox(defaultViewBox())
   }
 
   function createNewGraph() {
@@ -905,7 +931,7 @@ export default function GraphEditorModal({
     setTool('select')
     historyRef.current = { past: [], future: [] }
     setHistory(historyRef.current)
-    setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+    setViewBox(defaultViewBox())
   }
 
   function clearGraph() {
@@ -945,7 +971,7 @@ export default function GraphEditorModal({
 
   function fitView() {
     if (draftRef.current.nodes.length === 0) {
-      setViewBox({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+      setViewBox(defaultViewBox())
       return
     }
 
@@ -1034,7 +1060,7 @@ export default function GraphEditorModal({
       aria-modal="true"
       aria-labelledby="graph-editor-title"
     >
-      <div className="flex h-[min(760px,calc(100vh-1rem))] w-[min(1180px,calc(100vw-1rem))] overflow-hidden rounded-lg border border-white/12 bg-black shadow-2xl shadow-black/70">
+      <div className="flex h-[min(840px,calc(100vh-1rem))] w-[min(1220px,calc(100vw-1rem))] overflow-hidden rounded-lg border border-white/12 bg-black shadow-2xl shadow-black/70">
         <aside className="hidden w-[250px] shrink-0 flex-col border-r border-white/8 bg-white/[0.02] md:flex">
           <div className="border-b border-white/8 p-3">
             <div className="flex items-center justify-between gap-2">
@@ -1072,7 +1098,7 @@ export default function GraphEditorModal({
                     onClick={() => selectGraph(graph)}
                     className={`w-full rounded-md border p-2 text-left transition-colors ${
                       graph.id === draft.id
-                        ? 'border-emerald-400/60 bg-emerald-400/10'
+                        ? 'border-cyan-300/60 bg-cyan-300/10'
                         : 'border-white/8 bg-white/[0.03] hover:border-white/18 hover:bg-white/8'
                     }`}
                   >
@@ -1136,7 +1162,7 @@ export default function GraphEditorModal({
 
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <main className="flex min-w-0 flex-1 flex-col">
-              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/8 px-3 py-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/8 px-3 py-2.5">
                 <ToolButton
                   active={tool === 'select'}
                   label={locale === 'fr' ? 'Selectionner' : 'Select'}
@@ -1226,14 +1252,14 @@ export default function GraphEditorModal({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:bg-cyan-300/12 hover:text-[var(--app-accent)]"
                 >
                   {locale === 'fr' ? 'Importer' : 'Import'}
                 </button>
                 <button
                   type="button"
                   onClick={exportJson}
-                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                  className="h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:bg-cyan-300/12 hover:text-[var(--app-accent)]"
                 >
                   {locale === 'fr' ? 'Exporter' : 'Export'}
                 </button>
@@ -1241,14 +1267,14 @@ export default function GraphEditorModal({
                   type="button"
                   onClick={clearGraph}
                   disabled={draft.nodes.length === 0 && draft.edges.length === 0}
-                  className="ml-auto h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-35"
+                  className="ml-auto h-8 rounded-md border border-white/10 bg-white/6 px-2 text-[11px] font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:bg-cyan-300/12 hover:text-[var(--app-accent)] disabled:pointer-events-none disabled:opacity-35"
                 >
                   {locale === 'fr' ? 'Vider' : 'Clear'}
                 </button>
               </div>
 
-              <div className="min-h-0 flex-1 p-3">
-                <div className="h-full min-h-[320px] overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
+              <div className="min-h-0 flex-1 p-2 sm:p-3">
+                <div className="h-full min-h-[390px] overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
                   <svg
                     ref={svgRef}
                     viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
@@ -1270,8 +1296,24 @@ export default function GraphEditorModal({
                         markerHeight="5"
                         orient="auto-start-reverse"
                       >
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#d4d4d4" />
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--graph-stroke-default, #22d3ee)" />
                       </marker>
+                      <pattern id="graph-editor-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                        <path
+                          d="M 24 0 H 0 V 24"
+                          fill="none"
+                          stroke="var(--graph-editor-grid, rgba(148, 163, 184, 0.14))"
+                          strokeWidth="0.8"
+                        />
+                      </pattern>
+                      <pattern id="graph-editor-grid-major" width="120" height="120" patternUnits="userSpaceOnUse">
+                        <path
+                          d="M 120 0 H 0 V 120"
+                          fill="none"
+                          stroke="var(--graph-editor-grid-major, rgba(34, 211, 238, 0.14))"
+                          strokeWidth="1.1"
+                        />
+                      </pattern>
                     </defs>
                     <rect
                       x={viewBox.x}
@@ -1281,6 +1323,22 @@ export default function GraphEditorModal({
                       fill="transparent"
                       onPointerDown={handleCanvasPointerDown}
                     />
+                    <rect
+                      x={viewBox.x}
+                      y={viewBox.y}
+                      width={viewBox.width}
+                      height={viewBox.height}
+                      fill="url(#graph-editor-grid)"
+                      pointerEvents="none"
+                    />
+                    <rect
+                      x={viewBox.x}
+                      y={viewBox.y}
+                      width={viewBox.width}
+                      height={viewBox.height}
+                      fill="url(#graph-editor-grid-major)"
+                      pointerEvents="none"
+                    />
 
                     {draft.edges.map((edge, index) => {
                       const from = draft.nodes.find((node) => node.id === edge.from)
@@ -1288,7 +1346,7 @@ export default function GraphEditorModal({
                       if (!from || !to) return null
 
                       const selectedEdge = selectedEdgeIndexes.includes(index)
-                      const color = selectedEdge ? '#34d399' : edge.color ?? DEFAULT_EDGE_COLOR
+                      const color = selectedEdge ? SELECTED_COLOR : edge.color ?? DEFAULT_EDGE_COLOR
                       const start = draft.directed
                         ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
                         : { x: from.x, y: from.y }
@@ -1331,13 +1389,20 @@ export default function GraphEditorModal({
                           />
                           {label != null && (
                             <>
-                              <circle cx={midX} cy={midY} r={11} fill="#000" stroke={color} strokeWidth={1} />
+                              <circle
+                                cx={midX}
+                                cy={midY}
+                                r={11}
+                                fill="var(--graph-weight-bg, #020617)"
+                                stroke={color}
+                                strokeWidth={1}
+                              />
                               <text
                                 x={midX}
                                 y={midY}
                                 textAnchor="middle"
                                 dominantBaseline="central"
-                                fill="#d4d4d4"
+                                fill="var(--graph-weight-text, #e2e8f0)"
                                 fontSize="9"
                                 fontWeight={700}
                               >
@@ -1372,7 +1437,7 @@ export default function GraphEditorModal({
                               cy={node.y}
                               r={NODE_RADIUS + 5}
                               fill="none"
-                              stroke={waitingForEdge ? '#fbbf24' : '#34d399'}
+                              stroke={waitingForEdge ? WAITING_EDGE_COLOR : SELECTED_COLOR}
                               strokeWidth={2}
                               opacity={0.9}
                             />
@@ -1382,7 +1447,7 @@ export default function GraphEditorModal({
                             cy={node.y}
                             r={NODE_RADIUS}
                             fill={node.color ?? DEFAULT_NODE_COLOR}
-                            stroke={active ? '#34d399' : '#d4d4d4'}
+                            stroke={active ? SELECTED_COLOR : 'var(--graph-stroke-default, #22d3ee)'}
                             strokeWidth={active ? 2.4 : 1.6}
                           />
                           <text
@@ -1390,7 +1455,7 @@ export default function GraphEditorModal({
                             y={node.y}
                             textAnchor="middle"
                             dominantBaseline="central"
-                            fill="#ffffff"
+                            fill={readableTextColor(node.color ?? DEFAULT_NODE_COLOR)}
                             fontSize="12"
                             fontWeight={700}
                           >
@@ -1406,9 +1471,9 @@ export default function GraphEditorModal({
                         y={marqueeRect.y}
                         width={marqueeRect.width}
                         height={marqueeRect.height}
-                        fill="#34d399"
+                        fill={SELECTED_COLOR}
                         fillOpacity={0.08}
-                        stroke="#34d399"
+                        stroke={SELECTED_COLOR}
                         strokeWidth={1}
                         strokeDasharray="5 4"
                         pointerEvents="none"
@@ -1447,7 +1512,7 @@ export default function GraphEditorModal({
                         type="checkbox"
                         checked={draft.directed}
                         onChange={(event) => setDirected(event.target.checked)}
-                        className="h-4 w-4 accent-emerald-400"
+                        className="h-4 w-4 accent-cyan-300"
                       />
                     </label>
                   </div>
@@ -1704,8 +1769,8 @@ function ToolButton({
       disabled={disabled}
       className={`flex h-8 w-8 items-center justify-center rounded-md border transition-colors disabled:pointer-events-none disabled:opacity-35 ${
         active
-          ? 'border-emerald-400/60 bg-emerald-400/12 text-emerald-200'
-          : 'border-white/10 bg-white/6 text-neutral-400 hover:bg-white/10 hover:text-white'
+          ? 'border-cyan-300 bg-cyan-300 text-slate-950 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]'
+          : 'border-white/10 bg-white/6 text-[var(--app-text-secondary)] hover:border-cyan-300/55 hover:bg-cyan-300/12 hover:text-[var(--app-accent)]'
       }`}
       aria-label={label}
       title={label}

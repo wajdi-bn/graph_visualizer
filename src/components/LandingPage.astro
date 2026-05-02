@@ -1,0 +1,198 @@
+---
+import { algorithms } from '@lib/algorithms'
+import type { Locale } from '@i18n/translations'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const isFr = locale === 'fr'
+const appUrl = isFr ? '/fr/app' : '/app'
+const createGraphUrl = `${appUrl}?createGraph=1`
+const dijkstraUrl = isFr ? '/fr/dijkstra' : '/dijkstra'
+const alternateUrl = isFr ? '/' : '/fr/'
+
+const copy = isFr
+  ? {
+      langLabel: 'English',
+      eyebrow: `${algorithms.length} algorithmes de graphes`,
+      title: 'GraphForce',
+      description:
+        'Visualisez les algorithmes de graphes avec lecture pas a pas, code synchronise et graphes personnalises sauvegardes dans la session.',
+      primary: 'Ouvrir le visualiseur',
+      createGraph: 'Creer un graphe',
+      secondary: 'Commencer avec Dijkstra',
+      themeToLight: 'Mode clair',
+      themeToDark: 'Mode sombre',
+      panelTitle: 'Environnement',
+      cards: [
+        ['Lecture', 'Avancez dans chaque etape avec le graphe et les variables visibles.'],
+        ['Editeur', 'Creez, modifiez, copiez et reutilisez vos propres graphes.'],
+        ['Code', 'Gardez le pseudo-code et les donnees d execution au meme endroit.'],
+      ],
+      previewTitle: 'Algorithmes inclus',
+      previewText:
+        'Plus courts chemins, arbres couvrants, connectivite, coloration et structures auxiliaires.',
+    }
+  : {
+      langLabel: 'Francais',
+      eyebrow: `${algorithms.length} graph algorithms`,
+      title: 'GraphForce',
+      description:
+        'Visualize graph algorithms with step playback, synchronized code, and custom graphs saved in the current session.',
+      primary: 'Open visualizer',
+      createGraph: 'Create graph',
+      secondary: 'Start with Dijkstra',
+      themeToLight: 'Light mode',
+      themeToDark: 'Dark mode',
+      panelTitle: 'Workspace',
+      cards: [
+        ['Playback', 'Step through the graph while variables and state stay visible.'],
+        ['Editor', 'Create, edit, copy, and reuse your own graph examples.'],
+        ['Code', 'Keep pseudocode and execution data beside the visualization.'],
+      ],
+      previewTitle: 'Included algorithms',
+      previewText:
+        'Shortest paths, spanning trees, connectivity, coloring, and auxiliary structures.',
+    }
+---
+
+<main id="main-content" class="min-h-screen overflow-hidden text-[var(--app-text)]">
+  <section class="relative isolate min-h-[82svh] overflow-hidden px-5 py-5 md:px-8">
+    <img
+      src="/graphforce-hero.png"
+      alt=""
+      class="pointer-events-none absolute bottom-[-70px] right-[-40px] z-[-1] w-[min(560px,78vw)] opacity-55 md:bottom-[-90px] md:right-[5vw] md:opacity-70"
+      loading="eager"
+      decoding="async"
+    />
+    <div class="absolute inset-0 z-[-2] bg-[radial-gradient(circle_at_68%_40%,rgba(34,211,238,0.24),transparent_32%),radial-gradient(circle_at_16%_18%,rgba(34,211,238,0.16),transparent_34%)]"></div>
+    <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4">
+      <a href={isFr ? '/fr/' : '/'} class="flex items-center gap-3 text-sm font-semibold text-white">
+        <img src="/graphforce-logo.svg" alt="" class="h-8 w-8" />
+        <span class="font-heading text-[var(--app-text)]">Graph<span class="text-[var(--app-accent)]">Force</span></span>
+      </a>
+      <div class="flex items-center gap-2">
+        <button
+          id="landing-theme-toggle"
+          type="button"
+          data-light-label={copy.themeToLight}
+          data-dark-label={copy.themeToDark}
+          class="inline-flex h-8 items-center gap-2 rounded-md border border-cyan-300/30 bg-cyan-300/10 px-3 text-xs font-semibold text-[var(--app-accent)] transition-colors hover:border-cyan-200 hover:bg-cyan-300/15"
+          aria-label={copy.themeToLight}
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25M12 18.75V21M4.22 4.22l1.59 1.59M18.19 18.19l1.59 1.59M3 12h2.25M18.75 12H21M4.22 19.78l1.59-1.59M18.19 5.81l1.59-1.59" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
+          <span class="hidden sm:inline" data-theme-label>{copy.themeToLight}</span>
+        </button>
+        <a
+          href={alternateUrl}
+          class="rounded-md border border-white/10 bg-white/6 px-3 py-1.5 text-xs font-medium text-[var(--app-text-secondary)] transition-colors hover:border-cyan-300/45 hover:text-[var(--app-accent)]"
+        >
+          {copy.langLabel}
+        </a>
+        <a
+          href={appUrl}
+          class="rounded-md bg-cyan-300 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
+        >
+          {copy.primary}
+        </a>
+      </div>
+    </nav>
+
+    <div class="mx-auto grid max-w-6xl gap-8 pt-[12vh] md:grid-cols-[minmax(0,1fr)_360px] md:items-end md:pt-[16vh]">
+      <div class="max-w-3xl">
+        <p class="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
+          {copy.eyebrow}
+        </p>
+        <h1 class="font-heading text-5xl leading-none text-[var(--app-text)] sm:text-6xl md:text-7xl">
+          {copy.title}
+        </h1>
+        <p class="mt-5 max-w-2xl text-base leading-7 text-[var(--app-text-secondary)] md:text-lg">
+          {copy.description}
+        </p>
+        <div class="mt-7 flex flex-wrap gap-3">
+          <a
+            href={appUrl}
+            class="rounded-md bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
+          >
+            {copy.primary}
+          </a>
+          <a
+            href={createGraphUrl}
+            class="rounded-md bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
+          >
+            {copy.createGraph}
+          </a>
+          <a
+            href={dijkstraUrl}
+            class="rounded-md border border-cyan-300/35 bg-[var(--app-soft)] px-5 py-3 text-sm font-semibold text-[var(--app-accent)] transition-colors hover:border-cyan-200 hover:text-[var(--app-text)]"
+          >
+            {copy.secondary}
+          </a>
+        </div>
+      </div>
+
+      <aside class="hidden border border-white/10 bg-[var(--app-soft)] p-5 shadow-[0_22px_70px_-36px_rgba(14,165,233,0.62)] backdrop-blur md:block">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--app-accent)]">{copy.panelTitle}</p>
+        <div class="mt-5 space-y-4">
+          {copy.cards.map(([title, text]) => (
+            <div class="border-t border-white/10 pt-4">
+              <div class="text-sm font-semibold text-[var(--app-text)]">{title}</div>
+              <p class="mt-1 text-sm leading-6 text-[var(--app-text-secondary)]">{text}</p>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="border-t border-white/10 bg-[var(--app-soft)] px-5 py-8 backdrop-blur md:px-8">
+    <div class="mx-auto flex max-w-6xl flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h2 class="font-heading text-2xl text-[var(--app-text)]">{copy.previewTitle}</h2>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-[var(--app-text-secondary)]">
+          {copy.previewText}
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-xs font-medium text-[var(--app-accent)]">
+        {algorithms.slice(0, 6).map((algorithm) => (
+          <a
+            href={isFr ? `/fr/${algorithm.id}` : `/${algorithm.id}`}
+            class="rounded-md border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 transition-colors hover:border-cyan-200 hover:bg-cyan-300/15"
+          >
+            {algorithm.name}
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</main>
+
+<script is:inline>
+  (() => {
+    const button = document.getElementById('landing-theme-toggle')
+    if (!button) return
+    const label = button.querySelector('[data-theme-label]')
+    const lightLabel = button.dataset.lightLabel || 'Light mode'
+    const darkLabel = button.dataset.darkLabel || 'Dark mode'
+
+    const setButtonLabel = (theme) => {
+      const nextLabel = theme === 'dark' ? lightLabel : darkLabel
+      button.setAttribute('aria-label', nextLabel)
+      if (label) label.textContent = nextLabel
+    }
+
+    setButtonLabel(document.documentElement.dataset.theme || 'dark')
+    button.addEventListener('click', () => {
+      const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+      const next = current === 'dark' ? 'light' : 'dark'
+      document.documentElement.dataset.theme = next
+      localStorage.setItem('algoviz-theme', next)
+      setButtonLabel(next)
+    })
+  })()
+</script>

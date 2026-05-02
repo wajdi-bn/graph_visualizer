@@ -36,7 +36,7 @@ function getAlgorithmUrl(locale: string, algoId: string): string {
 
 function getAlgorithmIdFromPath(pathname: string): string | null {
   const cleaned = pathname.replace(/\/$/, '')
-  if (cleaned === '' || cleaned === '/fr') return null
+  if (cleaned === '' || cleaned === '/app' || cleaned === '/fr' || cleaned === '/fr/app') return null
   if (cleaned.startsWith('/fr/')) return cleaned.slice(4)
   return cleaned.slice(1)
 }
@@ -177,6 +177,13 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     setGraphEditorOpen(true)
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('createGraph') !== '1') return
+    openGraphEditor(null)
+    window.history.replaceState(window.history.state, '', window.location.pathname)
+  }, [openGraphEditor])
+
   const handleGraphSaved = useCallback(
     (graph: SessionGraph) => {
       setSessionGraphs(readSessionGraphs())
@@ -240,7 +247,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
   const codePanelLabel = locale === 'fr' ? 'Panneau de code et details' : 'Code and details panel'
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-[var(--app-bg)]">
       <Header
         locale={locale}
         t={t}
@@ -270,7 +277,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         onEditGraph={(graphId) => openGraphEditor(graphId)}
       />
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative bg-[var(--app-bg)]">
         {!isMobile && (
           <div className="relative shrink-0 flex">
             <aside
@@ -351,7 +358,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
 
         <main
           id="main-content"
-          className="flex-1 flex flex-col overflow-hidden min-w-0"
+          className="flex-1 flex flex-col overflow-hidden min-w-0 bg-[var(--app-bg)]"
           aria-label="Algorithm visualization"
         >
           <div className="flex-1 flex flex-col p-4 md:p-8 overflow-auto">

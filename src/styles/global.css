@@ -35,80 +35,128 @@
 
 :root {
   color-scheme: dark;
-  --app-bg: #000000;
-  --app-surface: #000000;
-  --app-overlay: rgba(0, 0, 0, 0.6);
-  --app-soft: rgba(255, 255, 255, 0.06);
-  --app-soft-hover: rgba(255, 255, 255, 0.1);
-  --app-border: rgba(255, 255, 255, 0.08);
-  --app-border-strong: rgba(255, 255, 255, 0.14);
-  --app-text: #f5f5f5;
-  --app-text-secondary: #a3a3a3;
-  --app-text-muted: #525252;
-  --app-inverse-bg: #ffffff;
-  --app-inverse-text: #000000;
-  --graph-node-default: #1a1a1a;
-  --graph-node-visited: #555555;
-  --graph-node-current: #ffffff;
-  --graph-node-text: #ffffff;
-  --graph-current-text: #000000;
-  --graph-edge-default: #242424;
-  --graph-edge-visited: #666666;
-  --graph-stroke-default: #333333;
-  --graph-stroke-visited: #777777;
-  --graph-weight-bg: #000000;
-  --graph-weight-text: #a3a3a3;
-  --graph-current: #ffffff;
-  --graph-selected: #34d399;
+  --app-bg: #071a2f;
+  --app-background-image: none;
+  --app-surface: #0a2038;
+  --app-surface-raised: #0d2945;
+  --app-overlay: rgba(7, 26, 47, 0.72);
+  --app-soft: rgba(34, 211, 238, 0.08);
+  --app-soft-hover: rgba(34, 211, 238, 0.14);
+  --app-border: rgba(103, 232, 249, 0.22);
+  --app-border-strong: rgba(34, 211, 238, 0.5);
+  --app-text: #e6edf7;
+  --app-text-secondary: #cbd5e1;
+  --app-text-muted: #64748b;
+  --app-inverse-bg: #22d3ee;
+  --app-inverse-text: #020617;
+  --app-accent: #22d3ee;
+  --app-accent-strong: #67e8f9;
+  --app-accent-violet: #863bff;
+  --app-warning: #facc15;
+  --graph-node-default: #15304d;
+  --graph-node-visited: #21496a;
+  --graph-node-current: #facc15;
+  --graph-node-text: #f8fafc;
+  --graph-current-text: #020617;
+  --graph-edge-default: #475569;
+  --graph-edge-visited: #64748b;
+  --graph-stroke-default: #22d3ee;
+  --graph-stroke-visited: #94a3b8;
+  --graph-weight-bg: #071a2f;
+  --graph-weight-text: #e2e8f0;
+  --graph-current: #facc15;
+  --graph-selected: #22d3ee;
   --graph-rejected: #fb7185;
-  --graph-relaxed: #38bdf8;
-  --graph-candidate: #fbbf24;
-  --range-track: rgba(255, 255, 255, 0.12);
-  --range-track-hover: rgba(255, 255, 255, 0.2);
-  --range-thumb: #ffffff;
-  --range-thumb-border: rgba(255, 255, 255, 0.2);
+  --graph-relaxed: #67e8f9;
+  --graph-candidate: #facc15;
+  --graph-editor-grid: rgba(103, 232, 249, 0.12);
+  --graph-editor-grid-major: rgba(34, 211, 238, 0.2);
+  --range-track: rgba(148, 163, 184, 0.24);
+  --range-track-hover: rgba(34, 211, 238, 0.28);
+  --range-thumb: #22d3ee;
+  --range-thumb-border: rgba(103, 232, 249, 0.35);
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --app-bg: #ffffff;
+  --app-bg: #f8fafc;
+  --app-background-image: none;
   --app-surface: #ffffff;
-  --app-overlay: rgba(15, 23, 42, 0.28);
-  --app-soft: rgba(15, 23, 42, 0.055);
-  --app-soft-hover: rgba(15, 23, 42, 0.09);
-  --app-border: rgba(15, 23, 42, 0.12);
-  --app-border-strong: rgba(15, 23, 42, 0.18);
+  --app-surface-raised: #f8fafc;
+  --app-overlay: rgba(15, 23, 42, 0.34);
+  --app-soft: rgba(255, 255, 255, 0.72);
+  --app-soft-hover: rgba(236, 254, 255, 0.92);
+  --app-border: rgba(15, 23, 42, 0.14);
+  --app-border-strong: rgba(8, 145, 178, 0.35);
   --app-text: #0f172a;
-  --app-text-secondary: #475569;
-  --app-text-muted: #94a3b8;
-  --app-inverse-bg: #0f172a;
+  --app-text-secondary: #334155;
+  --app-text-muted: #64748b;
+  --app-inverse-bg: #0891b2;
   --app-inverse-text: #ffffff;
-  --graph-node-default: #f8fafc;
-  --graph-node-visited: #dbeafe;
-  --graph-node-current: #0f172a;
+  --app-accent: #0891b2;
+  --app-accent-strong: #06b6d4;
+  --app-accent-violet: #7c3aed;
+  --app-warning: #ca8a04;
+  --graph-node-default: #ffffff;
+  --graph-node-visited: #cffafe;
+  --graph-node-current: #facc15;
   --graph-node-text: #0f172a;
-  --graph-current-text: #ffffff;
-  --graph-edge-default: #cbd5e1;
+  --graph-current-text: #020617;
+  --graph-edge-default: #94a3b8;
   --graph-edge-visited: #64748b;
-  --graph-stroke-default: #cbd5e1;
-  --graph-stroke-visited: #64748b;
+  --graph-stroke-default: #0891b2;
+  --graph-stroke-visited: #22d3ee;
   --graph-weight-bg: #ffffff;
   --graph-weight-text: #0f172a;
-  --graph-current: #0f172a;
-  --graph-selected: #059669;
+  --graph-current: #ca8a04;
+  --graph-selected: #0891b2;
   --graph-rejected: #e11d48;
-  --graph-relaxed: #0284c7;
+  --graph-relaxed: #06b6d4;
   --graph-candidate: #ca8a04;
-  --range-track: rgba(15, 23, 42, 0.22);
-  --range-track-hover: rgba(15, 23, 42, 0.32);
-  --range-thumb: #0f172a;
-  --range-thumb-border: rgba(15, 23, 42, 0.2);
+  --graph-editor-grid: rgba(15, 23, 42, 0.1);
+  --graph-editor-grid-major: rgba(8, 145, 178, 0.16);
+  --range-track: rgba(15, 23, 42, 0.18);
+  --range-track-hover: rgba(8, 145, 178, 0.25);
+  --range-thumb: #0891b2;
+  --range-thumb-border: rgba(8, 145, 178, 0.3);
 }
 
 html,
 body {
-  background: var(--app-bg);
+  background-color: var(--app-bg);
+  background-image: var(--app-background-image);
+  background-attachment: fixed;
   color: var(--app-text);
+}
+
+.bg-black {
+  background-color: var(--app-surface) !important;
+}
+
+.bg-white {
+  background-color: var(--app-inverse-bg) !important;
+}
+
+.text-black {
+  color: var(--app-inverse-text) !important;
+}
+
+[class*='bg-white/'],
+[class*='bg-white\\['],
+[class*='bg-white\\/'] {
+  background-color: var(--app-soft) !important;
+}
+
+[class*='hover:bg-white/']:hover,
+[class*='hover:bg-white\\[']:hover,
+[class*='hover:bg-white\\/']:hover {
+  background-color: var(--app-soft-hover) !important;
+}
+
+[class*='border-white/'],
+[class*='border-white\\['],
+[class*='border-white\\/'] {
+  border-color: var(--app-border) !important;
 }
 
 [data-theme='light'] .bg-black {

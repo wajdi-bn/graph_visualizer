@@ -34,9 +34,13 @@ interface HeaderProps {
   onEditGraph: (graphId: string) => void
 }
 
+function getLandingUrl(targetLocale: Locale) {
+  return targetLocale === 'en' ? '/' : `/${targetLocale}/`
+}
+
 function getLocaleUrl(targetLocale: Locale, algorithmId?: string) {
-  if (targetLocale === 'en') return algorithmId ? `/${algorithmId}` : '/'
-  return algorithmId ? `/${targetLocale}/${algorithmId}` : `/${targetLocale}/`
+  if (algorithmId) return targetLocale === 'en' ? `/${algorithmId}` : `/${targetLocale}/${algorithmId}`
+  return targetLocale === 'en' ? '/app' : `/${targetLocale}/app`
 }
 
 export default function Header({
@@ -102,23 +106,14 @@ export default function Header({
         ) : null}
 
         <a
-          href={getLocaleUrl(locale)}
+          href={getLandingUrl(locale)}
           className="flex items-center gap-2 md:gap-2.5 hover:opacity-80 transition-opacity min-w-0"
-          aria-label="Graph Theory Visualizer - Home"
+          aria-label="GraphForce - Home"
         >
-          <div className="w-6 h-6 rounded-md bg-white flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-black" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <g stroke="currentColor" strokeLinejoin="round" strokeWidth={1.5}>
-                <circle cx="6" cy="18" r="2.25" />
-                <circle cx="12" cy="6" r="2.25" />
-                <circle cx="18" cy="18" r="2.25" />
-                <path strokeLinecap="round" d="M7.3 16.15 10.7 7.85M13.3 7.85l3.4 8.3M8.25 18h7.5" />
-              </g>
-            </svg>
-          </div>
+          <img src="/graphforce-logo.svg" alt="" className="h-7 w-7 shrink-0" />
           {!selectedAlgorithm && !isMobile && (
             <span className="font-semibold text-sm tracking-tight text-white font-heading">
-              Graph Theory Visualizer
+              Graph<span className="text-[var(--app-accent)]">Force</span>
             </span>
           )}
         </a>
