@@ -1,17 +1,15 @@
 import type { Algorithm, Category } from '@lib/types'
 
-import {
-  dijkstra,
-  bellmanFord,
-  bellman,
-  kruskal,
-  prim,
-  connectedComponents,
-  kosaraju,
-  eulerianPath,
-  welshPowell,
-  unionFind,
-} from '@lib/algorithms/graphs'
+import { dijkstra } from '@lib/algorithms/shortest-paths/dijkstra'
+import { bellmanFord } from '@lib/algorithms/shortest-paths/bellmanFord'
+import { bellman } from '@lib/algorithms/shortest-paths/bellman'
+import { kruskal } from '@lib/algorithms/spanning-trees/kruskal'
+import { prim } from '@lib/algorithms/spanning-trees/prim'
+import { connectedComponents } from '@lib/algorithms/connectivity/connectedComponents'
+import { kosaraju } from '@lib/algorithms/connectivity/kosaraju'
+import { eulerianPath } from '@lib/algorithms/traversal/eulerianPath'
+import { welshPowell } from '@lib/algorithms/coloring/welshPowell'
+import { unionFind } from '@lib/algorithms/structures/unionFind'
 
 export const algorithms: Algorithm[] = [
   dijkstra,
