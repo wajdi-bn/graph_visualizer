@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Locale } from '@i18n/translations'
 import {
   translations,
@@ -7,7 +7,7 @@ import {
   getAlgorithmMetaDescription,
 } from '@i18n/translations'
 import { algorithms, categories } from '@lib/algorithms'
-import { usePlayback } from '@hooks/usePlayback'
+import { usePlayback, SPEED_MAP } from '@hooks/usePlayback'
 import { useResizablePanel } from '@hooks/useResizablePanel'
 import { useKeyboardShortcuts } from '@hooks/useKeyboardShortcuts'
 import Header from '@components/Header'
@@ -16,7 +16,9 @@ import WelcomeScreen from '@components/WelcomeScreen'
 import GraphVisualizer from '@components/GraphVisualizer'
 import CodePanel from '@components/CodePanel'
 import GraphEditorModal from '@components/GraphEditorModal'
-import type { Algorithm } from '@lib/types'
+import type { Algorithm, Step } from '@lib/types'
+import type { PropertyKey, PropertyDemoResult } from '@lib/algorithms/graphAlgorithmUtils'
+import { buildPropertyDemo } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   getSessionGraphIdFromExampleId,
   makeSessionGraphExampleId,
@@ -64,7 +66,7 @@ function useIsMobile() {
 
 export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizProps) {
   const t = translations[locale]
-  const [activeTab, setActiveTab] = useState<'code' | 'about'>('code')
+  const [activeTab, setActiveTab] = useState<'code' | 'about' | 'properties'>('code')
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof document === 'undefined') return 'dark'
     return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
@@ -72,6 +74,10 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
   const [sessionGraphs, setSessionGraphs] = useState<SessionGraph[]>([])
   const [graphEditorOpen, setGraphEditorOpen] = useState(false)
   const [editingGraphId, setEditingGraphId] = useState<string | null>(null)
+  const [propertyDemo, setPropertyDemo] = useState<PropertyDemoResult | null>(null)
+  const [propertyDemoStep, setPropertyDemoStep] = useState(0)
+  const [demoIsPlaying, setDemoIsPlaying] = useState(false)
+  const demoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isMobile = useIsMobile()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [mobileCodePanelOpen, setMobileCodePanelOpen] = useState(false)
@@ -95,6 +101,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     stepForward,
     stepBackward,
     togglePlay,
+    pause,
     currentStepData,
   } = usePlayback(locale, initialAlgorithm)
 
@@ -160,6 +167,8 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
 
   const selectAlgorithm = useCallback(
     (algo: Algorithm) => {
+      setPropertyDemo(null)
+      setPropertyDemoStep(0)
       selectAlgorithmBase(algo)
       setActiveTab('code')
       setMobileSidebarOpen(false)
@@ -176,6 +185,22 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     setEditingGraphId(graphId)
     setGraphEditorOpen(true)
   }, [])
+
+  const runPropertyDemo = useCallback(
+    (property: PropertyKey) => {
+      if (!currentStepData?.graph) return
+      const graph = currentStepData.graph
+      const demo = buildPropertyDemo(locale, graph.nodes, graph.edges, Boolean(graph.directed), property)
+      if (!demo) return
+      pause()
+      setPropertyDemo(demo)
+      setPropertyDemoStep(0)
+      setDemoIsPlaying(true)
+      setActiveTab('properties')
+      codePanel.expand()
+    },
+    [locale, currentStepData?.graph, codePanel.expand, pause],
+  )
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -232,15 +257,99 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     updateMetaDescription,
   ])
 
+  useEffect(() => {
+    if (!propertyDemo) {
+      setDemoIsPlaying(false)
+      setPropertyDemoStep(0)
+      return
+    }
+
+    if (demoIntervalRef.current) {
+      clearInterval(demoIntervalRef.current)
+      demoIntervalRef.current = null
+    }
+
+    if (demoIsPlaying && propertyDemo.steps.length > 0) {
+      demoIntervalRef.current = setInterval(() => {
+        setPropertyDemoStep((prev) => {
+          if (prev >= propertyDemo.steps.length - 1) {
+            setDemoIsPlaying(false)
+            return prev
+          }
+          return prev + 1
+        })
+      }, SPEED_MAP[speed] || 400)
+    }
+
+    return () => {
+      if (demoIntervalRef.current) {
+        clearInterval(demoIntervalRef.current)
+        demoIntervalRef.current = null
+      }
+    }
+  }, [propertyDemo, demoIsPlaying, speed])
+
   const getLocalizedDescription = (algo: Algorithm): string =>
     getAlgorithmDescription(locale, algo.id) ?? algo.description
 
+  const isDemoActive = Boolean(propertyDemo)
+  const demoSteps = propertyDemo?.steps ?? []
+  const visualStep = propertyDemo ? propertyDemo.steps[propertyDemoStep] : currentStepData
+
+  const demoStepForward = useCallback(() => {
+    if (demoSteps.length === 0) return
+    setPropertyDemoStep((prev) => Math.min(prev + 1, demoSteps.length - 1))
+  }, [demoSteps.length])
+
+  const demoStepBackward = useCallback(() => {
+    if (demoSteps.length === 0) return
+    setPropertyDemoStep((prev) => Math.max(prev - 1, 0))
+  }, [demoSteps.length])
+
+  const demoTogglePlay = useCallback(() => {
+    if (demoSteps.length === 0) return
+    setPropertyDemoStep((prev) => {
+      if (prev >= demoSteps.length - 1) {
+        setDemoIsPlaying(true)
+        return 0
+      }
+      setDemoIsPlaying((playing) => !playing)
+      return prev
+    })
+  }, [demoSteps.length])
+
+  const demoStepChange = useCallback(
+    (step: number) => {
+      if (demoSteps.length === 0) return
+      const next = Math.max(0, Math.min(step, demoSteps.length - 1))
+      setPropertyDemoStep(next)
+    },
+    [demoSteps.length],
+  )
+
+  const displayCurrentStep = isDemoActive ? propertyDemoStep : currentStep
+  const displayTotalSteps = isDemoActive ? demoSteps.length : steps.length
+  const displayIsPlaying = isDemoActive ? demoIsPlaying : isPlaying
+  const handleTogglePlay = isDemoActive ? demoTogglePlay : togglePlay
+  const handleStepForward = isDemoActive ? demoStepForward : stepForward
+  const handleStepBackward = isDemoActive ? demoStepBackward : stepBackward
+  const handleStepChange = isDemoActive ? demoStepChange : setCurrentStep
+
   const renderVisualization = () => {
-    if (!selectedAlgorithm || !currentStepData) {
+    if (!selectedAlgorithm || (!currentStepData && !propertyDemo)) {
       return <WelcomeScreen t={t} locale={locale} onSelectAlgorithm={selectAlgorithm} />
     }
 
-    return <GraphVisualizer step={currentStepData} locale={locale} />
+    return (
+      <div className="relative flex-1">
+        {propertyDemo && (
+          <div className="absolute left-3 top-3 z-20 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[11px] text-neutral-200 backdrop-blur">
+            {propertyDemo.title} · {propertyDemo.verdict}
+          </div>
+        )}
+        {visualStep && <GraphVisualizer step={visualStep} locale={locale} />}
+      </div>
+    )
   }
 
   const sidebarLabel = locale === 'fr' ? 'Categories d algorithmes' : 'Algorithm categories'
@@ -256,15 +365,15 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         codePanelCollapsed={isMobile ? true : codePanel.collapsed}
         onExpandSidebar={isMobile ? () => setMobileSidebarOpen(true) : sidebar.expand}
         onExpandCodePanel={isMobile ? () => setMobileCodePanelOpen(true) : codePanel.expand}
-        currentStep={currentStep}
-        totalSteps={steps.length}
-        isPlaying={isPlaying}
+        currentStep={displayCurrentStep}
+        totalSteps={displayTotalSteps}
+        isPlaying={displayIsPlaying}
         speed={speed}
-        onTogglePlay={togglePlay}
-        onStepForward={stepForward}
-        onStepBackward={stepBackward}
+        onTogglePlay={handleTogglePlay}
+        onStepForward={handleStepForward}
+        onStepBackward={handleStepBackward}
         onSpeedChange={setSpeed}
-        onStepChange={setCurrentStep}
+        onStepChange={handleStepChange}
         isMobile={isMobile}
         onToggleMobileSidebar={() => setMobileSidebarOpen((value) => !value)}
         onToggleMobileCodePanel={() => setMobileCodePanelOpen((value) => !value)}
@@ -366,12 +475,12 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
           </div>
 
           <div className="px-4 pb-3 md:px-8 md:pb-5" aria-live="polite" aria-atomic="true">
-            {currentStepData?.description && (
+            {visualStep?.description && (
               <div className="text-xs md:text-sm text-neutral-300 bg-white/5 rounded-lg px-3 py-2 md:px-5 md:py-3 border border-white/12">
                 <span className="text-amber-300/90 font-medium mr-2">
-                  {t.step.replace('{n}', String(currentStep + 1))}
+                  {t.step.replace('{n}', String(displayCurrentStep + 1))}
                 </span>
-                {currentStepData.description}
+                {visualStep.description}
               </div>
             )}
           </div>
@@ -417,11 +526,13 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
                 <CodePanelContent
                   selectedAlgorithm={selectedAlgorithm}
                   description={selectedAlgorithm ? getLocalizedDescription(selectedAlgorithm) : ''}
-                  currentLine={currentStepData?.codeLine}
-                  variables={currentStepData?.variables}
-                  consoleOutput={currentStepData?.consoleOutput}
+                  currentLine={visualStep?.codeLine}
+                  variables={visualStep?.variables}
+                  consoleOutput={visualStep?.consoleOutput}
+                  graph={visualStep?.graph}
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
+                  onPropertySelect={runPropertyDemo}
                   locale={locale}
                   theme={theme}
                   emptyText={t.selectAlgorithmCode}
@@ -457,11 +568,13 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
                 <CodePanelContent
                   selectedAlgorithm={selectedAlgorithm}
                   description={selectedAlgorithm ? getLocalizedDescription(selectedAlgorithm) : ''}
-                  currentLine={currentStepData?.codeLine}
-                  variables={currentStepData?.variables}
-                  consoleOutput={currentStepData?.consoleOutput}
+                  currentLine={visualStep?.codeLine}
+                  variables={visualStep?.variables}
+                  consoleOutput={visualStep?.consoleOutput}
+                  graph={visualStep?.graph}
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
+                  onPropertySelect={runPropertyDemo}
                   locale={locale}
                   theme={theme}
                   emptyText={t.selectAlgorithmCode}
@@ -486,7 +599,11 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
           </MobileIconButton>
           <div className="flex-1 flex items-center justify-center min-w-0">
             <div className="flex items-center gap-1" role="group" aria-label={t.controlsLabel}>
-              <ControlButton onClick={stepBackward} disabled={currentStep <= 0} label={t.stepBackward}>
+              <ControlButton
+                onClick={handleStepBackward}
+                disabled={displayCurrentStep <= 0}
+                label={t.stepBackward}
+              >
                 <path
                   fillRule="evenodd"
                   clipRule="evenodd"
@@ -494,11 +611,11 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
                 />
               </ControlButton>
               <button
-                onClick={togglePlay}
+                onClick={handleTogglePlay}
                 className="w-8 h-8 rounded-full bg-white hover:bg-neutral-200 flex items-center justify-center transition-all active:scale-95"
                 aria-label={t.playPause}
               >
-                {isPlaying ? (
+                {displayIsPlaying ? (
                   <svg className="w-3.5 h-3.5 text-black" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <rect x="6" y="5" width="4" height="14" rx="1" />
                     <rect x="14" y="5" width="4" height="14" rx="1" />
@@ -514,8 +631,8 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
                 )}
               </button>
               <ControlButton
-                onClick={stepForward}
-                disabled={currentStep >= steps.length - 1}
+                onClick={handleStepForward}
+                disabled={displayCurrentStep >= displayTotalSteps - 1}
                 label={t.stepForward}
               >
                 <path
@@ -526,7 +643,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
               </ControlButton>
             </div>
             <span className="text-[11px] text-neutral-600 font-mono tabular-nums ml-2">
-              {steps.length > 0 ? `${currentStep + 1}/${steps.length}` : '-'}
+              {displayTotalSteps > 0 ? `${displayCurrentStep + 1}/${displayTotalSteps}` : '-'}
             </span>
           </div>
           <MobileIconButton
@@ -626,8 +743,10 @@ function CodePanelContent({
   currentLine,
   variables,
   consoleOutput,
+  graph,
   activeTab,
   onTabChange,
+  onPropertySelect,
   locale,
   theme,
   emptyText,
@@ -637,8 +756,10 @@ function CodePanelContent({
   currentLine?: number
   variables?: Record<string, string | number | boolean | null>
   consoleOutput?: string[]
-  activeTab: 'code' | 'about'
-  onTabChange: (tab: 'code' | 'about') => void
+  graph?: Step['graph']
+  activeTab: 'code' | 'about' | 'properties'
+  onTabChange: (tab: 'code' | 'about' | 'properties') => void
+  onPropertySelect?: (property: PropertyKey) => void
   locale: Locale
   theme: 'dark' | 'light'
   emptyText: string
@@ -655,8 +776,10 @@ function CodePanelContent({
       currentLine={currentLine}
       variables={variables}
       consoleOutput={consoleOutput}
+      graph={graph}
       activeTab={activeTab}
       onTabChange={onTabChange}
+      onPropertySelect={onPropertySelect}
       locale={locale}
       theme={theme}
     />

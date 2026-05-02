@@ -2,8 +2,21 @@ import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } fro
 import type { Monaco } from '@monaco-editor/react'
 import type { Locale } from '@i18n/translations'
 import { translations } from '@i18n/translations'
-import type { Difficulty } from '@lib/types'
+import type { Difficulty, GraphState } from '@lib/types'
 import ComplexityChart from '@components/ComplexityChart'
+import {
+  bfsTraversal,
+  degreeMap,
+  dfsTraversal,
+  hasDirectedCycle,
+  hasUndirectedCycle,
+  isBipartiteGraph,
+  isConnectedGraph,
+  isEulerianCircuitGraph,
+  isTree,
+  label,
+  shortestUnweightedPath,
+} from '@lib/algorithms/graphAlgorithmUtils'
 
 const LazyEditor = lazy(() => import('@monaco-editor/react'))
 
@@ -29,6 +42,24 @@ const DIFFICULTY_CONFIG: Record<Difficulty, { en: string; fr: string; color: str
     },
   }
 
+type PropertyKey =
+  | 'bfs'
+  | 'dfs'
+  | 'path'
+  | 'cycle'
+  | 'circuit'
+  | 'bipartite'
+  | 'tree'
+  | 'regular'
+
+interface PropertyResult {
+  title: string
+  verdict: string
+  description: string
+  steps: string[]
+  tags: string[]
+}
+
 interface CodePanelProps {
   code: string
   description: string
@@ -36,8 +67,10 @@ interface CodePanelProps {
   currentLine?: number
   variables?: Record<string, string | number | boolean | null>
   consoleOutput?: string[]
-  activeTab: 'code' | 'about'
-  onTabChange: (tab: 'code' | 'about') => void
+  graph?: GraphState
+  activeTab: 'code' | 'about' | 'properties'
+  onTabChange: (tab: 'code' | 'about' | 'properties') => void
+  onPropertySelect?: (property: PropertyKey) => void
   locale?: Locale
   theme?: 'dark' | 'light'
 }
@@ -78,14 +111,17 @@ export default function CodePanel({
   currentLine,
   variables,
   consoleOutput,
+  graph,
   activeTab,
   onTabChange,
+  onPropertySelect,
   locale = 'en',
   theme = 'dark',
 }: CodePanelProps) {
   const t = translations[locale]
   const [isMounted, setIsMounted] = useState(false)
   const [editorReady, setEditorReady] = useState(false)
+  const [selectedProperty, setSelectedProperty] = useState<PropertyKey>('bfs')
   const editorRef = useRef<any>(null)
   const monacoRef = useRef<Monaco | null>(null)
   const decorationsRef = useRef<string[]>([])
@@ -135,6 +171,251 @@ export default function CodePanel({
     )
     return '  // ' + parts.join(', ')
   }, [variables])
+
+  const graphProperties = useMemo(() => {
+    if (!graph) return null
+
+    const nodes = graph.nodes
+    const edges = graph.edges
+    const directed = Boolean(graph.directed || edges.some((edge) => edge.directed))
+    const degrees = degreeMap(nodes, edges, false)
+    const connected = isConnectedGraph(nodes, edges, false)
+    const cycle = directed ? hasDirectedCycle(nodes, edges) : hasUndirectedCycle(nodes, edges)
+    const tree = !directed && isTree(nodes, edges)
+    const regular = !directed ? Object.values(degrees).every((degree, _, arr) => degree === arr[0]) : null
+
+    let bipartiteValue: boolean | null = null
+    if (!directed) {
+      const colors = new Map<number, 0 | 1>()
+      let valid = true
+      const adj = new Map<number, number[]>()
+      for (const node of nodes) adj.set(node.id, [])
+      for (const edge of edges) {
+        adj.get(edge.from)?.push(edge.to)
+        adj.get(edge.to)?.push(edge.from)
+      }
+      for (const node of nodes) {
+        if (colors.has(node.id)) continue
+        colors.set(node.id, 0)
+        const queue = [node.id]
+        while (queue.length > 0 && valid) {
+          const current = queue.shift()!
+          for (const neighbor of adj.get(current) ?? []) {
+            const currentColor = colors.get(current)!
+            const neighborColor = colors.get(neighbor)
+            if (neighborColor == null) {
+              colors.set(neighbor, currentColor === 0 ? 1 : 0)
+              queue.push(neighbor)
+            } else if (neighborColor === currentColor) {
+              valid = false
+              break
+            }
+          }
+        }
+        if (!valid) break
+      }
+      bipartiteValue = valid
+    }
+
+    return {
+      nodesCount: nodes.length,
+      edgesCount: edges.length,
+      directed,
+      connected,
+      cycle,
+      tree,
+      bipartite: bipartiteValue,
+      regular,
+      degreeEntries: Object.entries(degrees),
+    }
+  }, [graph])
+
+  const propertyResult = useMemo<PropertyResult | null>(() => {
+    if (!graphProperties || !graph) return null
+
+    const nodes = graph.nodes
+    const edges = graph.edges
+    const directed = graphProperties.directed
+    const source = nodes[0]?.id
+    const target = nodes[nodes.length - 1]?.id
+
+    const makeVerdict = (value: boolean, yesLabel: string, noLabel: string) =>
+      value ? yesLabel : noLabel
+
+    switch (selectedProperty) {
+      case 'bfs': {
+        if (source == null) return null
+        const result = bfsTraversal(nodes, edges, source, directed)
+        return {
+          title: locale === 'fr' ? 'Parcours en largeur' : 'Breadth-first traversal',
+          verdict: locale === 'fr' ? 'Ordre de parcours calculé' : 'Traversal order computed',
+          description:
+            locale === 'fr'
+              ? `La file visite d'abord les sommets les plus proches de ${label(nodes, source)}.`
+              : `The queue visits the vertices closest to ${label(nodes, source)} first.`,
+          steps: [
+            locale === 'fr'
+              ? `Ordre BFS : ${result.order.map((id) => label(nodes, id)).join(' -> ')}`
+              : `BFS order: ${result.order.map((id) => label(nodes, id)).join(' -> ')}`,
+            locale === 'fr'
+              ? `Distances : ${nodes.map((node) => `${label(nodes, node.id)}=${result.distances[node.id]}`).join(', ')}`
+              : `Distances: ${nodes.map((node) => `${label(nodes, node.id)}=${result.distances[node.id]}`).join(', ')}`,
+          ],
+          tags: [locale === 'fr' ? 'Parcours' : 'Traversal', locale === 'fr' ? 'File' : 'Queue'],
+        }
+      }
+      case 'dfs': {
+        if (source == null) return null
+        const result = dfsTraversal(nodes, edges, source, directed)
+        return {
+          title: locale === 'fr' ? 'Parcours en profondeur' : 'Depth-first traversal',
+          verdict: locale === 'fr' ? 'Ordre de parcours calculé' : 'Traversal order computed',
+          description:
+            locale === 'fr'
+              ? `La pile descend avant de revenir en arrière depuis ${label(nodes, source)}.`
+              : `The stack goes deep before backtracking from ${label(nodes, source)}.`,
+          steps: [
+            locale === 'fr'
+              ? `Ordre DFS : ${result.order.map((id) => label(nodes, id)).join(' -> ')}`
+              : `DFS order: ${result.order.map((id) => label(nodes, id)).join(' -> ')}`,
+          ],
+          tags: [locale === 'fr' ? 'Parcours' : 'Traversal', locale === 'fr' ? 'Pile' : 'Stack'],
+        }
+      }
+      case 'path': {
+        if (source == null || target == null) return null
+        const result = shortestUnweightedPath(nodes, edges, source, target, directed)
+        const pathText = result.path.length > 0 ? result.path.map((id) => label(nodes, id)).join(' -> ') : (locale === 'fr' ? 'Aucun chemin' : 'No path')
+        return {
+          title: locale === 'fr' ? 'Recherche de chemin' : 'Path search',
+          verdict: result.path.length > 0 ? (locale === 'fr' ? 'Chemin trouvé' : 'Path found') : (locale === 'fr' ? 'Chemin introuvable' : 'Path not found'),
+          description:
+            locale === 'fr'
+              ? `On cherche un chemin simple entre ${label(nodes, source)} et ${label(nodes, target)}.`
+              : `We search for a simple path between ${label(nodes, source)} and ${label(nodes, target)}.`,
+          steps: [
+            locale === 'fr'
+              ? `Chemin : ${pathText}`
+              : `Path: ${pathText}`,
+            locale === 'fr'
+              ? `Prédecesseurs : ${nodes.map((node) => `${label(nodes, node.id)}=${result.predecessors[node.id] == null ? '-' : label(nodes, result.predecessors[node.id] as number)}`).join(', ')}`
+              : `Predecessors: ${nodes.map((node) => `${label(nodes, node.id)}=${result.predecessors[node.id] == null ? '-' : label(nodes, result.predecessors[node.id] as number)}`).join(', ')}`,
+          ],
+          tags: [locale === 'fr' ? 'Chemin' : 'Path', locale === 'fr' ? 'BFS' : 'BFS'],
+        }
+      }
+      case 'cycle': {
+        const hasCycle = directed ? hasDirectedCycle(nodes, edges) : hasUndirectedCycle(nodes, edges)
+        return {
+          title: locale === 'fr' ? 'Détection de cycle' : 'Cycle detection',
+          verdict: makeVerdict(hasCycle, locale === 'fr' ? 'Cycle trouvé' : 'Cycle found', locale === 'fr' ? 'Aucun cycle' : 'No cycle'),
+          description:
+            locale === 'fr'
+              ? 'Un DFS suit les arêtes et détecte une remontée vers un sommet déjà actif.'
+              : 'A DFS follows edges and detects a back-edge to an active vertex.',
+          steps: [
+            locale === 'fr'
+              ? `Résultat : ${hasCycle ? 'le graphe contient un cycle' : 'le graphe est acyclique'}`
+              : `Result: ${hasCycle ? 'the graph contains a cycle' : 'the graph is acyclic'}`,
+          ],
+          tags: [locale === 'fr' ? 'DFS' : 'DFS', locale === 'fr' ? 'Cycle' : 'Cycle'],
+        }
+      }
+      case 'circuit': {
+        const circuit = isEulerianCircuitGraph(nodes, edges, directed)
+        return {
+          title: locale === 'fr' ? 'Circuit eulérien' : 'Eulerian circuit',
+          verdict: circuit.eulerianCircuit ? (locale === 'fr' ? 'Circuit possible' : 'Circuit possible') : (locale === 'fr' ? 'Circuit impossible' : 'Circuit impossible'),
+          description:
+            locale === 'fr'
+              ? 'Le test vérifie la connexité et les degrés pairs pour savoir si l on peut parcourir toutes les arêtes une seule fois.'
+              : 'The test checks connectivity and even degrees to see whether every edge can be traversed exactly once.',
+          steps: [
+            locale === 'fr'
+              ? `Connexe : ${circuit.connected ? 'oui' : 'non'}`
+              : `Connected: ${circuit.connected ? 'yes' : 'no'}`,
+            locale === 'fr'
+              ? `Tous les degrés pairs : ${circuit.allEven ? 'oui' : 'non'}`
+              : `All degrees even: ${circuit.allEven ? 'yes' : 'no'}`,
+          ],
+          tags: [locale === 'fr' ? 'Eulerien' : 'Eulerian', locale === 'fr' ? 'Arêtes' : 'Edges'],
+        }
+      }
+      case 'bipartite': {
+        if (directed) {
+          return {
+            title: locale === 'fr' ? 'Bipartition' : 'Bipartite check',
+            verdict: locale === 'fr' ? 'Non applicable' : 'Not applicable',
+            description: locale === 'fr' ? 'Le test est appliqué aux graphes non orientés.' : 'The check is applied to undirected graphs.',
+            steps: [],
+            tags: [locale === 'fr' ? 'Non orienté' : 'Undirected'],
+          }
+        }
+        const result = isBipartiteGraph(nodes, edges, directed)
+        return {
+          title: locale === 'fr' ? 'Bipartition' : 'Bipartite check',
+          verdict: result.bipartite ? (locale === 'fr' ? 'Biparti' : 'Bipartite') : (locale === 'fr' ? 'Non biparti' : 'Not bipartite'),
+          description:
+            locale === 'fr'
+              ? 'Une coloration à deux couleurs est propagée par BFS; un conflit prouve que le graphe n est pas biparti.'
+              : 'A two-coloring is propagated by BFS; a conflict proves the graph is not bipartite.',
+          steps: [
+            locale === 'fr'
+              ? `Coloration : ${nodes.map((node) => `${label(nodes, node.id)}=${result.color[node.id] == null ? '-' : result.color[node.id] === 0 ? 'A' : 'B'}`).join(', ')}`
+              : `Coloring: ${nodes.map((node) => `${label(nodes, node.id)}=${result.color[node.id] == null ? '-' : result.color[node.id] === 0 ? 'A' : 'B'}`).join(', ')}`,
+          ],
+          tags: [locale === 'fr' ? '2 couleurs' : '2-coloring'],
+        }
+      }
+      case 'tree': {
+        const tree = isTree(nodes, edges)
+        return {
+          title: locale === 'fr' ? 'Test d arbre' : 'Tree check',
+          verdict: tree ? (locale === 'fr' ? 'Arbre' : 'Tree') : (locale === 'fr' ? 'Pas un arbre' : 'Not a tree'),
+          description:
+            locale === 'fr'
+              ? 'Un arbre est connexe et sans cycle, avec exactement V - 1 arêtes.'
+              : 'A tree is connected and acyclic, with exactly V - 1 edges.',
+          steps: [
+            locale === 'fr'
+              ? `Connexité : ${graphProperties.connected ? 'oui' : 'non'}`
+              : `Connectivity: ${graphProperties.connected ? 'yes' : 'no'}`,
+            locale === 'fr'
+              ? `V - 1 arêtes : ${edges.length === nodes.length - 1 ? 'oui' : 'non'}`
+              : `V - 1 edges: ${edges.length === nodes.length - 1 ? 'yes' : 'no'}`,
+          ],
+          tags: [locale === 'fr' ? 'Arbre' : 'Tree'],
+        }
+      }
+      case 'regular': {
+        if (directed) {
+          return {
+            title: locale === 'fr' ? 'Régularité' : 'Regularity',
+            verdict: locale === 'fr' ? 'Non applicable' : 'Not applicable',
+            description: locale === 'fr' ? 'Le test de régularité est ici interprété sur les graphes non orientés.' : 'Regularity is interpreted here on undirected graphs.',
+            steps: [],
+            tags: [locale === 'fr' ? 'Non orienté' : 'Undirected'],
+          }
+        }
+        const first = graphProperties.degreeEntries[0]?.[1]
+        const regular = graphProperties.degreeEntries.every(([, degree]) => degree === first)
+        return {
+          title: locale === 'fr' ? 'Régularité' : 'Regularity',
+          verdict: regular ? (locale === 'fr' ? 'Graphe régulier' : 'Regular graph') : (locale === 'fr' ? 'Graphe non régulier' : 'Irregular graph'),
+          description:
+            locale === 'fr'
+              ? 'Le graphe est régulier si tous les sommets ont le même degré.'
+              : 'A graph is regular if every vertex has the same degree.',
+          steps: [
+            locale === 'fr'
+              ? `Degrés : ${graphProperties.degreeEntries.map(([id, degree]) => `${id}=${degree}`).join(', ')}`
+              : `Degrees: ${graphProperties.degreeEntries.map(([id, degree]) => `${id}=${degree}`).join(', ')}`,
+          ],
+          tags: [locale === 'fr' ? 'Degrés' : 'Degrees'],
+        }
+      }
+    }
+  }, [graph, graphProperties, locale, selectedProperty])
 
   // Update line highlight + inline variable annotation when currentLine/variables change
   useEffect(() => {
@@ -189,7 +470,7 @@ export default function CodePanel({
         role="tablist"
         aria-label={locale === 'fr' ? 'Onglets code et details' : 'Code and details tabs'}
         onKeyDown={(e) => {
-          const tabs = ['code', 'about'] as const
+          const tabs = ['code', 'about', 'properties'] as const
           const currentIndex = tabs.indexOf(activeTab)
           if (e.key === 'ArrowRight') {
             e.preventDefault()
@@ -200,7 +481,7 @@ export default function CodePanel({
           }
         }}
       >
-        {(['code', 'about'] as const).map((tab) => (
+        {(['code', 'about', 'properties'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
@@ -214,7 +495,7 @@ export default function CodePanel({
             }`}
           >
             <span className="flex items-center gap-2">
-              {tab === 'code' ? t.tabCode : t.tabAbout}
+              {tab === 'code' ? t.tabCode : tab === 'about' ? t.tabAbout : t.tabProperties}
               <kbd
                 className={`code-panel-tab-kbd inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-mono rounded border ${
                   activeTab === tab
@@ -223,7 +504,7 @@ export default function CodePanel({
                 }`}
                 aria-hidden="true"
               >
-                {tab === 'code' ? 'C' : 'E'}
+                {tab === 'code' ? 'C' : tab === 'about' ? 'E' : 'P'}
               </kbd>
             </span>
             {activeTab === tab && (
@@ -407,7 +688,7 @@ export default function CodePanel({
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'about' ? (
         <div
           className="flex-1 overflow-auto p-4 md:p-6"
           role="tabpanel"
@@ -521,7 +802,129 @@ export default function CodePanel({
             })()}
           </article>
         </div>
+      ) : (
+        <div
+          className="flex-1 overflow-auto p-4 md:p-6"
+          role="tabpanel"
+          id="tabpanel-properties"
+          aria-labelledby="tab-properties"
+        >
+          {!graphProperties ? (
+            <div className="h-full flex items-center justify-center text-neutral-600 text-sm">
+              {locale === 'fr'
+                ? 'Selectionnez un algorithme ou un graphe pour analyser ses proprietes.'
+                : 'Select an algorithm or graph to analyze its properties.'}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white font-heading mb-1">
+                  {locale === 'fr' ? 'Proprietes et traitements' : 'Properties and treatments'}
+                </h3>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  {locale === 'fr'
+                    ? 'Cliquez une propriete pour lancer son calcul sur le graphe courant.'
+                    : 'Click a property to run its calculation on the current graph.'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {PROPERTY_ITEMS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedProperty(item.key)
+                      onPropertySelect?.(item.key)
+                    }}
+                    className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                      selectedProperty === item.key
+                        ? 'border-white/20 bg-white/8 text-white'
+                        : 'border-white/8 bg-white/3 text-neutral-400 hover:bg-white/6 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-sm font-medium">{item.label}</div>
+                    <div className="text-[11px] text-neutral-600">{item.hint}</div>
+                  </button>
+                ))}
+              </div>
+
+              {propertyResult && (
+                <div className="rounded-xl border border-white/8 bg-white/3 p-4 space-y-3">
+                  <div>
+                    <h4 className="text-base font-semibold text-white">{propertyResult.title}</h4>
+                    <div className="text-sm text-emerald-300/90 font-medium">{propertyResult.verdict}</div>
+                  </div>
+                  <p className="text-sm text-neutral-400 leading-relaxed">{propertyResult.description}</p>
+                  <div className="space-y-2">
+                    {propertyResult.steps.map((line) => (
+                      <div key={line} className="text-[12px] font-mono text-neutral-300 bg-black/20 rounded-md px-3 py-2 border border-white/8">
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {propertyResult.tags.map((tag) => (
+                      <span key={tag} className="text-[10px] uppercase tracking-wider rounded-full border border-white/8 bg-white/5 px-2 py-1 text-neutral-500">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3">
+                <PropertyRow label={locale === 'fr' ? 'Type' : 'Type'} value={graphProperties.directed ? (locale === 'fr' ? 'Oriente' : 'Directed') : (locale === 'fr' ? 'Non oriente' : 'Undirected')} />
+                <PropertyRow label={locale === 'fr' ? 'Sommets' : 'Vertices'} value={graphProperties.nodesCount} />
+                <PropertyRow label={locale === 'fr' ? 'Aretes' : 'Edges'} value={graphProperties.edgesCount} />
+                <PropertyRow label={locale === 'fr' ? 'Connexe' : 'Connected'} value={graphProperties.connected ? yesNo(locale, true) : yesNo(locale, false)} />
+                <PropertyRow label={locale === 'fr' ? 'Cycle' : 'Cycle'} value={graphProperties.cycle ? yesNo(locale, true) : yesNo(locale, false)} />
+                <PropertyRow label={locale === 'fr' ? 'Arbre' : 'Tree'} value={graphProperties.tree ? yesNo(locale, true) : graphProperties.directed ? (locale === 'fr' ? 'Non applique' : 'Not applicable') : yesNo(locale, false)} />
+                <PropertyRow label={locale === 'fr' ? 'Biparti' : 'Bipartite'} value={graphProperties.bipartite == null ? (locale === 'fr' ? 'Non applique' : 'Not applicable') : yesNo(locale, graphProperties.bipartite)} />
+                <PropertyRow label={locale === 'fr' ? 'Regulier' : 'Regular'} value={graphProperties.regular == null ? (locale === 'fr' ? 'Non applique' : 'Not applicable') : yesNo(locale, graphProperties.regular)} />
+              </div>
+
+              <div className="rounded-xl border border-white/8 bg-white/3 p-4">
+                <div className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">
+                  {locale === 'fr' ? 'Degrés' : 'Degrees'}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {graphProperties.degreeEntries.map(([id, degree]) => (
+                    <span key={id} className="text-xs font-mono bg-white/6 text-neutral-300 px-2 py-1 rounded-md border border-white/8">
+                      {id}: {degree}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
+    </div>
+  )
+}
+
+const PROPERTY_ITEMS: Array<{ key: PropertyKey; label: string; hint: string }> = [
+  { key: 'bfs', label: 'BFS', hint: 'Parcours en largeur' },
+  { key: 'dfs', label: 'DFS', hint: 'Parcours en profondeur' },
+  { key: 'path', label: 'Path', hint: 'Chaîne / chemin' },
+  { key: 'cycle', label: 'Cycle', hint: 'Détection de cycle' },
+  { key: 'circuit', label: 'Circuit', hint: 'Circuit eulérien' },
+  { key: 'bipartite', label: 'Bipartite', hint: '2-coloration' },
+  { key: 'tree', label: 'Tree', hint: 'Arbre' },
+  { key: 'regular', label: 'Regular', hint: 'Régularité' },
+]
+
+function yesNo(locale: Locale, value: boolean) {
+  if (locale === 'fr') return value ? 'Oui' : 'Non'
+  return value ? 'Yes' : 'No'
+}
+
+function PropertyRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-white/8 bg-white/3 px-3 py-2">
+      <span className="text-sm text-neutral-400">{label}</span>
+      <span className="text-sm font-medium text-white tabular-nums">{value}</span>
     </div>
   )
 }

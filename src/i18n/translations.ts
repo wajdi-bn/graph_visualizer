@@ -22,6 +22,7 @@ export interface Translations {
   collapseSidebar: string
   tabCode: string
   tabAbout: string
+  tabProperties: string
   selectAlgorithmCode: string
   expandCodePanel: string
   collapseCodePanel: string
@@ -434,6 +435,7 @@ export const translations: Record<Locale, Translations> = {
     collapseSidebar: 'Collapse sidebar',
     tabCode: 'Code',
     tabAbout: 'Explanation',
+    tabProperties: 'Properties',
     selectAlgorithmCode: 'Select an algorithm to view its code',
     expandCodePanel: 'Expand code panel',
     collapseCodePanel: 'Collapse code panel',
@@ -498,6 +500,7 @@ export const translations: Record<Locale, Translations> = {
     collapseSidebar: 'Masquer la barre laterale',
     tabCode: 'Code',
     tabAbout: 'Explication',
+    tabProperties: 'Proprietes',
     selectAlgorithmCode: 'Selectionnez un algorithme pour voir son code',
     expandCodePanel: 'Afficher le panneau de code',
     collapseCodePanel: 'Masquer le panneau de code',

@@ -97,6 +97,11 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     })
   }, [steps.length])
 
+  const pause = useCallback(() => {
+    clearAutoplayTimer()
+    setIsPlaying(false)
+  }, [clearAutoplayTimer])
+
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -157,6 +162,7 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     stepForward,
     stepBackward,
     togglePlay,
+    pause,
     currentStepData,
   }
 }

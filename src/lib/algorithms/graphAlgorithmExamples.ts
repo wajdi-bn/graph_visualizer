@@ -45,6 +45,36 @@ export const coloringExampleOptions = [
   { id: 'coloring-dense', label: { en: 'Coloring graph', fr: 'Graphe de coloration' } },
 ]
 
+export const traversalExampleOptions = [
+  { id: 'branching', label: { en: 'Branching graph', fr: 'Graphe ramifie' } },
+  { id: 'deep', label: { en: 'Deeper graph', fr: 'Graphe plus profond' } },
+]
+
+export const pathExampleOptions = [
+  { id: 'shortest-chain', label: { en: 'Shortest chain', fr: 'Chaine la plus courte' } },
+  { id: 'detour', label: { en: 'Graph with detour', fr: 'Graphe avec detour' } },
+]
+
+export const cycleExampleOptions = [
+  { id: 'triangle-tail', label: { en: 'Triangle with tail', fr: 'Triangle avec queue' } },
+  { id: 'acyclic', label: { en: 'Acyclic graph', fr: 'Graphe sans cycle' } },
+]
+
+export const bipartiteExampleOptions = [
+  { id: 'bipartite', label: { en: 'Bipartite graph', fr: 'Graphe biparti' } },
+  { id: 'odd-cycle', label: { en: 'Odd cycle graph', fr: 'Graphe avec cycle impair' } },
+]
+
+export const treeExampleOptions = [
+  { id: 'tree', label: { en: 'Tree graph', fr: 'Graphe arbre' } },
+  { id: 'non-tree', label: { en: 'Non-tree graph', fr: 'Graphe non arbre' } },
+]
+
+export const regularExampleOptions = [
+  { id: 'regular', label: { en: 'Regular graph', fr: 'Graphe regulier' } },
+  { id: 'irregular', label: { en: 'Irregular graph', fr: 'Graphe non regulier' } },
+]
+
 export function getWeightedDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
   if (exampleId === 'dense') {
     return {
@@ -114,6 +144,249 @@ export function getComponentDemo(exampleId?: string): { nodes: GraphNode[]; edge
       { from: 0, to: 2 },
       { from: 3, to: 4 },
       { from: 4, to: 5 },
+    ],
+  }
+}
+
+export function getTraversalDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'deep') {
+    return {
+      nodes: [
+        { id: 0, label: 'A', x: 95, y: 80 },
+        { id: 1, label: 'B', x: 205, y: 65 },
+        { id: 2, label: 'C', x: 310, y: 85 },
+        { id: 3, label: 'D', x: 155, y: 185 },
+        { id: 4, label: 'E', x: 285, y: 200 },
+        { id: 5, label: 'F', x: 405, y: 190 },
+        { id: 6, label: 'G', x: 235, y: 300 },
+      ],
+      edges: [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 },
+        { from: 0, to: 3 },
+        { from: 3, to: 4 },
+        { from: 4, to: 5 },
+        { from: 4, to: 6 },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'A', x: 95, y: 85 },
+      { id: 1, label: 'B', x: 225, y: 60 },
+      { id: 2, label: 'C', x: 335, y: 105 },
+      { id: 3, label: 'D', x: 145, y: 195 },
+      { id: 4, label: 'E', x: 260, y: 205 },
+      { id: 5, label: 'F', x: 395, y: 175 },
+      { id: 6, label: 'G', x: 300, y: 295 },
+    ],
+    edges: [
+      { from: 0, to: 1 },
+      { from: 0, to: 3 },
+      { from: 1, to: 2 },
+      { from: 1, to: 4 },
+      { from: 2, to: 5 },
+      { from: 4, to: 6 },
+    ],
+  }
+}
+
+export function getPathDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'detour') {
+    return {
+      nodes: [
+        { id: 0, label: 'S', x: 70, y: 170 },
+        { id: 1, label: 'A', x: 180, y: 90 },
+        { id: 2, label: 'B', x: 185, y: 250 },
+        { id: 3, label: 'C', x: 315, y: 90 },
+        { id: 4, label: 'D', x: 335, y: 250 },
+        { id: 5, label: 'T', x: 455, y: 165 },
+      ],
+      edges: [
+        { from: 0, to: 1 },
+        { from: 0, to: 2 },
+        { from: 1, to: 3 },
+        { from: 2, to: 4 },
+        { from: 3, to: 5 },
+        { from: 4, to: 5 },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'S', x: 75, y: 170 },
+      { id: 1, label: 'A', x: 185, y: 90 },
+      { id: 2, label: 'B', x: 185, y: 250 },
+      { id: 3, label: 'C', x: 315, y: 90 },
+      { id: 4, label: 'D', x: 315, y: 250 },
+      { id: 5, label: 'T', x: 450, y: 170 },
+    ],
+    edges: [
+      { from: 0, to: 1 },
+      { from: 0, to: 2 },
+      { from: 1, to: 3 },
+      { from: 2, to: 4 },
+      { from: 3, to: 5 },
+      { from: 4, to: 5 },
+    ],
+  }
+}
+
+export function getCycleDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'acyclic') {
+    return {
+      nodes: [
+        { id: 0, label: 'A', x: 90, y: 100 },
+        { id: 1, label: 'B', x: 210, y: 70 },
+        { id: 2, label: 'C', x: 330, y: 120 },
+        { id: 3, label: 'D', x: 150, y: 230 },
+        { id: 4, label: 'E', x: 300, y: 250 },
+      ],
+      edges: [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 },
+        { from: 1, to: 3 },
+        { from: 3, to: 4 },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'A', x: 100, y: 90 },
+      { id: 1, label: 'B', x: 235, y: 55 },
+      { id: 2, label: 'C', x: 355, y: 125 },
+      { id: 3, label: 'D', x: 185, y: 225 },
+      { id: 4, label: 'E', x: 330, y: 255 },
+    ],
+    edges: [
+      { from: 0, to: 1 },
+      { from: 1, to: 2 },
+      { from: 2, to: 0 },
+      { from: 2, to: 3 },
+      { from: 3, to: 4 },
+    ],
+  }
+}
+
+export function getBipartiteDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'odd-cycle') {
+    return {
+      nodes: [
+        { id: 0, label: 'A', x: 100, y: 90 },
+        { id: 1, label: 'B', x: 240, y: 55 },
+        { id: 2, label: 'C', x: 360, y: 115 },
+        { id: 3, label: 'D', x: 185, y: 245 },
+        { id: 4, label: 'E', x: 335, y: 260 },
+      ],
+      edges: [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 },
+        { from: 2, to: 0 },
+        { from: 2, to: 3 },
+        { from: 3, to: 4 },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'A', x: 95, y: 90 },
+      { id: 1, label: 'B', x: 220, y: 60 },
+      { id: 2, label: 'C', x: 345, y: 90 },
+      { id: 3, label: 'D', x: 95, y: 245 },
+      { id: 4, label: 'E', x: 220, y: 280 },
+      { id: 5, label: 'F', x: 345, y: 245 },
+    ],
+    edges: [
+      { from: 0, to: 4 },
+      { from: 0, to: 5 },
+      { from: 1, to: 3 },
+      { from: 1, to: 5 },
+      { from: 2, to: 3 },
+      { from: 2, to: 4 },
+    ],
+  }
+}
+
+export function getTreeDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'non-tree') {
+    return {
+      nodes: [
+        { id: 0, label: 'A', x: 90, y: 100 },
+        { id: 1, label: 'B', x: 220, y: 65 },
+        { id: 2, label: 'C', x: 335, y: 110 },
+        { id: 3, label: 'D', x: 155, y: 235 },
+        { id: 4, label: 'E', x: 310, y: 250 },
+      ],
+      edges: [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 },
+        { from: 0, to: 3 },
+        { from: 3, to: 4 },
+        { from: 2, to: 4 },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'A', x: 100, y: 75 },
+      { id: 1, label: 'B', x: 220, y: 55 },
+      { id: 2, label: 'C', x: 340, y: 80 },
+      { id: 3, label: 'D', x: 150, y: 205 },
+      { id: 4, label: 'E', x: 290, y: 190 },
+      { id: 5, label: 'F', x: 210, y: 295 },
+    ],
+    edges: [
+      { from: 0, to: 1 },
+      { from: 1, to: 2 },
+      { from: 0, to: 3 },
+      { from: 1, to: 4 },
+      { from: 3, to: 5 },
+    ],
+  }
+}
+
+export function getRegularDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'irregular') {
+    return {
+      nodes: [
+        { id: 0, label: 'A', x: 100, y: 85 },
+        { id: 1, label: 'B', x: 225, y: 55 },
+        { id: 2, label: 'C', x: 350, y: 85 },
+        { id: 3, label: 'D', x: 150, y: 235 },
+        { id: 4, label: 'E', x: 300, y: 250 },
+      ],
+      edges: [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 },
+        { from: 2, to: 3 },
+        { from: 3, to: 4 },
+        { from: 4, to: 0 },
+        { from: 0, to: 2 },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'A', x: 100, y: 85 },
+      { id: 1, label: 'B', x: 225, y: 55 },
+      { id: 2, label: 'C', x: 350, y: 85 },
+      { id: 3, label: 'D', x: 350, y: 235 },
+      { id: 4, label: 'E', x: 225, y: 275 },
+      { id: 5, label: 'F', x: 100, y: 235 },
+    ],
+    edges: [
+      { from: 0, to: 1 },
+      { from: 1, to: 2 },
+      { from: 2, to: 3 },
+      { from: 3, to: 4 },
+      { from: 4, to: 5 },
+      { from: 5, to: 0 },
     ],
   }
 }
