@@ -75,13 +75,13 @@ Applications:
 
   'bellman-ford': `Bellman-Ford
 
-Bellman-Ford solves single-source shortest paths on directed graphs that may contain negative edge weights, as long as no reachable negative cycle exists.
+Bellman-Ford solves shortest paths from a chosen source. Directed graphs may contain positive or negative weights, but no negative-weight cycle. Undirected graphs are accepted only with strictly positive weights.
 
 How it works:
 1. Initialize distances from the source
 2. Repeat V - 1 passes over every edge
 3. Relax an edge when it improves the destination distance
-4. A final extra pass can detect a negative cycle
+4. A final extra pass detects a negative cycle before the run is accepted
 
 Time Complexity: O(VE)
 Space Complexity: O(V)
@@ -93,25 +93,25 @@ Applications:
 
   bellman: `Bellman
 
-Bellman's dynamic-programming shortest-path recurrence computes the best distance using at most k edges, then increases k until every simple shortest path is covered.
+This Bellman variant computes shortest paths in a directed acyclic graph by relaxing edges in topological order from a chosen source.
 
 How it works:
-1. Let D[0][source] = 0 and every other value be infinity
-2. For k = 1 to V - 1, copy the previous distance row
-3. For every edge u -> v, test D[k - 1][u] + weight(u, v)
-4. Keep the best value for each destination
+1. Verify that the graph is directed and acyclic
+2. Compute a topological order
+3. Set the source distance to 0
+4. Relax outgoing edges following that order
 
-Time Complexity: O(VE)
+Time Complexity: O(V + E)
 Space Complexity: O(V)
 
 Applications:
-- Dynamic-programming view of shortest paths
-- Routing recurrences
-- Teaching edge-count-limited paths`,
+- DAG shortest paths
+- Project scheduling graphs
+- Dependency networks`,
 
   kruskal: `Kruskal
 
-Kruskal builds a minimum spanning tree by scanning edges from lightest to heaviest and accepting only edges that connect different components.
+Kruskal builds a minimum spanning tree on a connected, weighted, undirected graph by scanning edges from lightest to heaviest and accepting only edges that connect different components.
 
 How it works:
 1. Sort all edges by weight
@@ -129,7 +129,7 @@ Applications:
 
   prim: `Prim
 
-Prim grows a minimum spanning tree from one start vertex, always adding the cheapest edge that connects the current tree to a new vertex.
+Prim grows a minimum spanning tree on a connected, weighted, undirected graph, always adding the cheapest edge that connects the current tree to a new vertex.
 
 How it works:
 1. Start with one vertex in the tree
@@ -183,12 +183,12 @@ Applications:
 
   'eulerian-path': `Eulerian Path
 
-An Eulerian path uses every edge exactly once. This visualization uses Hierholzer's algorithm on a graph where every vertex has even degree, so the result is an Eulerian circuit.
+A directed Eulerian path uses every directed edge exactly once. This visualization uses Hierholzer's algorithm after checking in-degree/out-degree conditions.
 
 How it works:
 1. Start from a valid vertex
-2. Walk along unused edges until stuck
-3. Backtrack vertices into the final circuit
+2. Walk along unused outgoing edges until stuck
+3. Backtrack vertices into the final path
 4. The reversed backtracking order is the Eulerian traversal
 
 Time Complexity: O(V + E)
@@ -197,6 +197,24 @@ Space Complexity: O(E)
 Applications:
 - Route inspection
 - Drawing graphs without lifting the pen
+- Edge-covering traversals`,
+
+  'eulerian-circuit': `Eulerian Circuit
+
+A directed Eulerian circuit uses every directed edge exactly once and returns to its start. Every non-isolated vertex must be connected and have equal in-degree and out-degree.
+
+How it works:
+1. Verify the directed circuit conditions
+2. Start from a non-isolated vertex
+3. Walk along unused outgoing edges
+4. Backtrack to produce the final circuit
+
+Time Complexity: O(V + E)
+Space Complexity: O(E)
+
+Applications:
+- Directed route inspection
+- Circuit reconstruction
 - Edge-covering traversals`,
 
   'welsh-powell': `Welsh-Powell
@@ -245,7 +263,7 @@ How it works:
 3. Push the path bottleneck through each edge
 4. Repeat until no augmenting path remains
 
-Time Complexity: O(E * maxFlow) with integral capacities
+Time Complexity: O(VE^2) with Edmonds-Karp BFS augmenting paths
 Space Complexity: O(V + E)
 
 Applications:
@@ -253,23 +271,6 @@ Applications:
 - Bipartite matching reductions
 - Source-sink capacity planning`,
 
-  'union-find': `Union-Find
-
-Union-Find maintains disjoint sets with near-constant find and union operations. It is the auxiliary structure behind Kruskal's cycle checks.
-
-How it works:
-1. makeSet creates one set per vertex
-2. find returns the representative root of a set
-3. union merges two sets when their roots differ
-4. Path compression and rank keep trees shallow
-
-Time Complexity: O(alpha(V)) amortized
-Space Complexity: O(V)
-
-Applications:
-- Kruskal's algorithm
-- Dynamic connectivity
-- Cycle detection in undirected graphs`,
 }
 
 const frDescriptions: Record<string, string> = {
@@ -293,13 +294,13 @@ Applications:
 
   'bellman-ford': `Bellman-Ford
 
-Bellman-Ford resout les plus courts chemins depuis une source dans des graphes orientes qui peuvent contenir des poids negatifs, sans cycle negatif atteignable.
+Bellman-Ford resout les plus courts chemins depuis une source choisie. Les graphes orientes peuvent contenir des poids positifs ou negatifs, mais aucun circuit absorbant. Les graphes non orientes sont acceptes seulement avec des poids strictement positifs.
 
 Fonctionnement:
 1. Initialiser les distances depuis la source
 2. Faire V - 1 passages sur toutes les aretes
 3. Relacher une arete si elle ameliore la distance d'arrivee
-4. Un passage supplementaire peut detecter un cycle negatif
+4. Un passage supplementaire detecte un circuit absorbant avant d accepter l execution
 
 Complexite temporelle: O(VE)
 Complexite spatiale: O(V)
@@ -311,25 +312,25 @@ Applications:
 
   bellman: `Bellman
 
-La recurrence de programmation dynamique de Bellman calcule la meilleure distance avec au plus k aretes, puis augmente k jusqu'a couvrir tout plus court chemin simple.
+Cette variante de Bellman calcule les plus courts chemins dans un graphe oriente acyclique en relachant les aretes selon un ordre topologique depuis une source choisie.
 
 Fonctionnement:
-1. Poser D[0][source] = 0 et les autres valeurs a l'infini
-2. Pour k = 1 a V - 1, copier la ligne precedente
-3. Pour chaque arete u -> v, tester D[k - 1][u] + poids(u, v)
-4. Garder la meilleure valeur pour chaque destination
+1. Verifier que le graphe est oriente et sans cycle
+2. Calculer un ordre topologique
+3. Mettre la distance de la source a 0
+4. Relacher les aretes sortantes dans cet ordre
 
-Complexite temporelle: O(VE)
+Complexite temporelle: O(V + E)
 Complexite spatiale: O(V)
 
 Applications:
-- Vue programmation dynamique des plus courts chemins
-- Recurrences de routage
-- Chemins limites par nombre d'aretes`,
+- Plus courts chemins dans les DAG
+- Graphes de planification
+- Reseaux de dependances`,
 
   kruskal: `Kruskal
 
-Kruskal construit un arbre couvrant minimal en parcourant les aretes de la plus legere a la plus lourde et en acceptant seulement celles qui relient deux composants differents.
+Kruskal construit un arbre couvrant minimal sur un graphe connexe, pondere et non oriente en parcourant les aretes de la plus legere a la plus lourde et en acceptant seulement celles qui relient deux composants differents.
 
 Fonctionnement:
 1. Trier toutes les aretes par poids
@@ -347,7 +348,7 @@ Applications:
 
   prim: `Prim
 
-Prim fait grandir un arbre couvrant minimal depuis un sommet initial, en ajoutant toujours l'arete la moins chere qui connecte l'arbre a un nouveau sommet.
+Prim fait grandir un arbre couvrant minimal sur un graphe connexe, pondere et non oriente, en ajoutant toujours l'arete la moins chere qui connecte l'arbre a un nouveau sommet.
 
 Fonctionnement:
 1. Demarrer avec un sommet dans l'arbre
@@ -401,12 +402,12 @@ Applications:
 
   'eulerian-path': `Chemin eulerien
 
-Un chemin eulerien utilise chaque arete exactement une fois. Cette visualisation utilise l'algorithme de Hierholzer sur un graphe ou tous les sommets ont un degre pair; le resultat est donc un circuit eulerien.
+Un chemin eulerien oriente utilise chaque arete orientee exactement une fois. Cette visualisation utilise Hierholzer apres verification des degres entrants/sortants.
 
 Fonctionnement:
 1. Commencer depuis un sommet valide
-2. Avancer sur des aretes non utilisees jusqu'a blocage
-3. Ajouter les sommets au circuit final pendant le retour arriere
+2. Avancer sur des aretes sortantes non utilisees jusqu'au blocage
+3. Ajouter les sommets au chemin final pendant le retour arriere
 4. L'ordre inverse donne le parcours eulerien
 
 Complexite temporelle: O(V + E)
@@ -415,6 +416,24 @@ Complexite spatiale: O(E)
 Applications:
 - Inspection de routes
 - Dessiner un graphe sans lever le crayon
+- Parcours couvrant toutes les aretes`,
+
+  'eulerian-circuit': `Circuit eulerien
+
+Un circuit eulerien oriente utilise chaque arete orientee exactement une fois et revient a son sommet de depart. Chaque sommet non isole doit etre connecte et avoir degre entrant = degre sortant.
+
+Fonctionnement:
+1. Verifier les conditions du circuit oriente
+2. Commencer depuis un sommet non isole
+3. Avancer sur les aretes sortantes non utilisees
+4. Revenir en arriere pour produire le circuit final
+
+Complexite temporelle: O(V + E)
+Complexite spatiale: O(E)
+
+Applications:
+- Inspection de routes orientees
+- Reconstruction de circuits
 - Parcours couvrant toutes les aretes`,
 
   'welsh-powell': `Welsh-Powell
@@ -463,7 +482,7 @@ Fonctionnement:
 3. Pousser le goulot du chemin sur chaque arete
 4. Repeter jusqu'a ce qu'il n'existe plus de chemin augmentant
 
-Complexite temporelle: O(E * flot max) avec capacites entieres
+Complexite temporelle: O(VE^2) avec chemins augmentants BFS Edmonds-Karp
 Complexite spatiale: O(V + E)
 
 Applications:
@@ -471,30 +490,13 @@ Applications:
 - Reductions vers le couplage biparti
 - Planification de capacites source-puits`,
 
-  'union-find': `Union-Find
-
-Union-Find maintient des ensembles disjoints avec des operations find et union presque constantes. C'est la structure auxiliaire derriere les tests de cycle de Kruskal.
-
-Fonctionnement:
-1. makeSet cree un ensemble par sommet
-2. find retourne la racine representante d'un ensemble
-3. union fusionne deux ensembles quand leurs racines different
-4. Compression de chemin et rang gardent les arbres peu profonds
-
-Complexite temporelle: O(alpha(V)) amortie
-Complexite spatiale: O(V)
-
-Applications:
-- Algorithme de Kruskal
-- Connectivite dynamique
-- Detection de cycles dans les graphes non orientes`,
 }
 
 export const translations: Record<Locale, Translations> = {
   en: {
     siteTitle: 'GraphForce',
     siteDescription:
-      'Interactive graph theory visualizations for shortest paths, spanning trees, connectivity, coloring, flows, and Union-Find.',
+      'Interactive graph theory visualizations for shortest paths, spanning trees, connectivity, coloring, and flows.',
     welcomeTitle: 'GraphForce',
     welcomeDescription:
       'Select a graph algorithm from the sidebar to watch each step unfold.\nThe visualizer focuses on classic graph theory concepts and problems.',
@@ -541,7 +543,6 @@ export const translations: Record<Locale, Translations> = {
       'Traversal / Properties': 'Traversal / Properties',
       Coloring: 'Coloring',
       Flows: 'Flows',
-      'Auxiliary Structures': 'Auxiliary Structures',
     },
     algorithmNames: {
       dijkstra: 'Dijkstra',
@@ -552,17 +553,17 @@ export const translations: Record<Locale, Translations> = {
       'connected-components': 'Connected Components',
       kosaraju: 'Kosaraju',
       'eulerian-path': 'Eulerian Path',
+      'eulerian-circuit': 'Eulerian Circuit',
       'welsh-powell': 'Welsh-Powell',
       'edge-coloring': 'Edge Coloring',
       'ford-fulkerson': 'Maximum Flow',
-      'union-find': 'Union-Find',
     },
     algorithmDescriptions: enDescriptions,
   },
   fr: {
     siteTitle: 'GraphForce',
     siteDescription:
-      'Visualisations interactives de theorie des graphes : plus courts chemins, arbres couvrants, connectivite, coloration, flots et Union-Find.',
+      'Visualisations interactives de theorie des graphes : plus courts chemins, arbres couvrants, connectivite, coloration et flots.',
     welcomeTitle: 'GraphForce',
     welcomeDescription:
       'Selectionnez un algorithme de graphe dans la barre laterale pour suivre chaque etape.\nLe visualiseur se concentre sur les concepts classiques de theorie des graphes.',
@@ -609,7 +610,6 @@ export const translations: Record<Locale, Translations> = {
       'Traversal / Properties': 'Parcours / proprietes',
       Coloring: 'Coloration',
       Flows: 'Flots',
-      'Auxiliary Structures': 'Structures auxiliaires',
     },
     algorithmNames: {
       dijkstra: 'Dijkstra',
@@ -620,10 +620,10 @@ export const translations: Record<Locale, Translations> = {
       'connected-components': 'Composantes connexes',
       kosaraju: 'Kosaraju',
       'eulerian-path': 'Chemin eulerien',
+      'eulerian-circuit': 'Circuit eulerien',
       'welsh-powell': 'Welsh-Powell',
       'edge-coloring': 'Coloration des aretes',
       'ford-fulkerson': 'Flot maximum',
-      'union-find': 'Union-Find',
     },
     algorithmDescriptions: frDescriptions,
   },

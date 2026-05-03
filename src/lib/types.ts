@@ -42,6 +42,8 @@ export interface GraphState {
   nodes: GraphNode[]
   edges: GraphEdge[]
   directed?: boolean
+  sourceNodeId?: number | null
+  sinkNodeId?: number | null
   visitedNodes: number[]
   currentNode: number | null
   visitedEdges: [number, number][]
@@ -85,7 +87,13 @@ export interface AlgorithmGraphInput {
   nodes: GraphNode[]
   edges: GraphEdge[]
   directed?: boolean
-  sourceNodeId?: number // Optional: for algorithms that require a source vertex (e.g., Dijkstra)
+  sourceNodeId?: number | null
+  sinkNodeId?: number | null
+}
+
+export interface AlgorithmRunOptions {
+  sourceNodeId?: number | null
+  sinkNodeId?: number | null
 }
 
 export interface Algorithm {
@@ -97,7 +105,12 @@ export interface Algorithm {
   code: string
   visualization: VisualizationType
   examples?: AlgorithmExample[]
-  generateSteps: (locale?: string, exampleId?: string, customGraph?: AlgorithmGraphInput) => Step[]
+  generateSteps: (
+    locale?: string,
+    exampleId?: string,
+    customGraph?: AlgorithmGraphInput,
+    options?: AlgorithmRunOptions,
+  ) => Step[]
 }
 
 export interface Category {

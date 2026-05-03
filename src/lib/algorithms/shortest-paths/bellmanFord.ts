@@ -1,4 +1,4 @@
-import type { Algorithm, GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
@@ -7,15 +7,23 @@ import {
   edgeKey,
   formatDistances,
   graphFromInput,
+  hasNegativeWeightCycle,
   inf,
   isDirectedGraph,
   label,
-  requireDirectedCustom,
   requireNodes,
+  requirePositiveWeights,
+  requireValidSource,
+  requireWeightedGraph,
+  resolveSourceNodeId,
+  incompatibilityStep,
 } from '@lib/algorithms/graphAlgorithmUtils'
-import {
-  negativeWeightedExampleOptions,
-} from '@lib/algorithms/graphAlgorithmExamples'
+import { negativeWeightedExampleOptions } from '@lib/algorithms/graphAlgorithmExamples'
+
+type RelaxEdge = Pick<GraphEdge, 'from' | 'to' | 'weight'> & {
+  originalFrom: number
+  originalTo: number
+}
 
 export const bellmanFord: Algorithm = {
   id: 'bellman-ford',
@@ -37,16 +45,20 @@ export const bellmanFord: Algorithm = {
     }
   }
 
+  if (canRelaxAgain(edges, dist)) {
+    throw new Error('Negative weight cycle');
+  }
+
   return { dist, parent };
 }`,
   description: `Bellman-Ford
 
-Bellman-Ford finds shortest paths from a source even when directed edges have negative weights, as long as there is no negative cycle reachable from the source.
+Bellman-Ford finds shortest paths from a chosen source. Directed graphs may contain positive or negative weights, but no negative-weight cycle. Undirected graphs are accepted only with strictly positive weights.
 
 Time Complexity: O(VE)
 Space Complexity: O(V)`,
   examples: negativeWeightedExampleOptions,
-  generateSteps(locale = 'en', _exampleId, customGraph) {
+  generateSteps(locale = 'en', _exampleId, customGraph, options?: AlgorithmRunOptions) {
     let nodes: GraphNode[] = [
       { id: 0, label: 'S', x: 70, y: 165 },
       { id: 1, label: 'A', x: 210, y: 65 },
@@ -65,29 +77,45 @@ Space Complexity: O(V)`,
       { from: 3, to: 1, weight: -2, directed: true },
       { from: 4, to: 3, weight: 7, directed: true },
     ]
+    let directed = true
+
     if (customGraph) {
-      const custom = graphFromInput(customGraph, {
-        directed: isDirectedGraph(customGraph),
-        defaultWeight: true,
-      })
-      const incompatible = requireDirectedCustom(
-        locale,
-        customGraph,
-        custom.nodes,
-        custom.edges,
-        'Bellman-Ford needs a directed graph. Turn on Directed graph in the editor.',
-        'Bellman-Ford exige un graphe oriente. Activez Graphe oriente dans l editeur.',
-      )
-      if (incompatible) return incompatible
+      directed = isDirectedGraph(customGraph)
+      const custom = graphFromInput(customGraph, { directed })
       nodes = custom.nodes
-      edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
+      edges = custom.edges.map((edge) => ({ ...edge, directed }))
     }
-    const source = nodes[0]?.id
-    if (source == null) return requireNodes(locale, nodes, edges, true)!
+
+    const incompatible =
+      requireNodes(locale, nodes, edges, directed) ??
+      requireWeightedGraph(locale, nodes, edges, directed)
+    if (incompatible) return incompatible
+
+    if (!directed) {
+      const positiveIssue = requirePositiveWeights(locale, nodes, edges, false)
+      if (positiveIssue) return positiveIssue
+    }
+
+    const relaxEdges = buildRelaxEdges(edges, directed)
+    if (directed && hasNegativeWeightCycle(nodes, relaxEdges)) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        true,
+        'Bellman-Ford cannot run on a graph with a negative-weight cycle.',
+        'Bellman-Ford ne peut pas s executer sur un graphe avec circuit absorbant.',
+      )
+    }
+
+    const source = resolveSourceNodeId(nodes, customGraph, options)
+    const sourceIssue = requireValidSource(locale, nodes, edges, directed, source)
+    if (sourceIssue) return sourceIssue
+    if (source == null) return []
+
     const sourceLabel = label(nodes, source)
     const distances: Record<number, number | string> = {}
     const predecessors: Record<number, number | null> = {}
-    const selectedEdges: [number, number][] = []
     const edgeStates: Record<string, GraphVisualState> = {}
     const steps: Step[] = []
 
@@ -98,30 +126,31 @@ Space Complexity: O(V)`,
 
     steps.push({
       graph: baseGraph(nodes, edges, {
-        directed: true,
+        directed,
+        sourceNodeId: source,
         currentNode: source,
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
-        phase: d(locale, 'Initialization', 'Initialisation'),
+        phase: d(locale, 'Initialize distances', 'Initialiser les distances'),
       }),
       description: d(
         locale,
-        `Initialize Bellman-Ford from source ${sourceLabel}.`,
-        `Initialiser Bellman-Ford depuis la source ${sourceLabel}.`,
+        `Start from source ${sourceLabel}. Bellman-Ford will scan every edge up to V - 1 times.`,
+        `On part de la source ${sourceLabel}. Bellman-Ford parcourt toutes les aretes jusqu a V - 1 fois.`,
       ),
       codeLine: 4,
       variables: { source: sourceLabel, distances: formatDistances(nodes, distances) },
     })
 
-    // Bellman-Ford repeats full edge scans so improvements can propagate across paths up to V - 1 edges long.
-    for (let pass = 1; pass < nodes.length; pass++) {
+    // Each full pass allows shortest paths with one more edge to propagate through the table.
+    for (let pass = 1; pass < nodes.length; pass += 1) {
       let changed = false
-      for (const edge of edges) {
+      for (const edge of relaxEdges) {
         const fromDistance = distances[edge.from]
-        const candidate = fromDistance === inf ? inf : (fromDistance as number) + (edge.weight ?? 1)
+        const candidate = fromDistance === inf ? inf : (fromDistance as number) + (edge.weight ?? 0)
         const oldDistance = distances[edge.to]
         const improved = candidate !== inf && (oldDistance === inf || (candidate as number) < (oldDistance as number))
-        edgeStates[edgeKey(edge.from, edge.to, true)] = improved ? 'relaxed' : 'candidate'
+        edgeStates[edgeKey(edge.originalFrom, edge.originalTo, directed)] = improved ? 'relaxed' : 'candidate'
 
         if (improved) {
           distances[edge.to] = candidate
@@ -129,18 +158,15 @@ Space Complexity: O(V)`,
           changed = true
         }
 
-        const selected = Object.entries(predecessors)
-          .filter(([, pred]) => pred != null)
-          .map(([to, pred]) => [pred as number, Number(to)] as [number, number])
-        selectedEdges.splice(0, selectedEdges.length, ...selected)
-
+        const selectedEdges = predecessorEdges(predecessors)
         steps.push({
           graph: baseGraph(nodes, edges, {
-            directed: true,
+            directed,
+            sourceNodeId: source,
             currentNode: edge.from,
             currentEdge: [edge.from, edge.to],
-            visitedEdges: [...selectedEdges],
-            selectedEdges: [...selectedEdges],
+            visitedEdges: selectedEdges,
+            selectedEdges,
             edgeStates: cloneEdgeStates(edgeStates),
             distances: cloneRecord(distances),
             predecessors: cloneRecord(predecessors),
@@ -170,10 +196,11 @@ Space Complexity: O(V)`,
       if (!changed) {
         steps.push({
           graph: baseGraph(nodes, edges, {
-            directed: true,
+            directed,
+            sourceNodeId: source,
             currentNode: null,
-            visitedEdges: [...selectedEdges],
-            selectedEdges: [...selectedEdges],
+            visitedEdges: predecessorEdges(predecessors),
+            selectedEdges: predecessorEdges(predecessors),
             distances: cloneRecord(distances),
             predecessors: cloneRecord(predecessors),
             phase: d(locale, 'No updates', 'Aucune mise a jour'),
@@ -190,8 +217,42 @@ Space Complexity: O(V)`,
       }
     }
 
+    steps.push({
+      graph: baseGraph(nodes, edges, {
+        directed,
+        sourceNodeId: source,
+        currentNode: null,
+        visitedEdges: predecessorEdges(predecessors),
+        selectedEdges: predecessorEdges(predecessors),
+        distances: cloneRecord(distances),
+        predecessors: cloneRecord(predecessors),
+        phase: d(locale, 'Shortest paths complete', 'Plus courts chemins termines'),
+      }),
+      description: d(
+        locale,
+        `Bellman-Ford is complete from ${sourceLabel}. Distances: ${formatDistances(nodes, distances)}.`,
+        `Bellman-Ford est termine depuis ${sourceLabel}. Distances : ${formatDistances(nodes, distances)}.`,
+      ),
+      variables: { source: sourceLabel, distances: formatDistances(nodes, distances) },
+    })
+
     return steps
   },
 }
 
+function buildRelaxEdges(edges: GraphEdge[], directed: boolean): RelaxEdge[] {
+  return edges.flatMap((edge) => {
+    const forward = { ...edge, originalFrom: edge.from, originalTo: edge.to }
+    if (directed) return [forward]
+    return [
+      forward,
+      { from: edge.to, to: edge.from, weight: edge.weight, originalFrom: edge.from, originalTo: edge.to },
+    ]
+  })
+}
 
+function predecessorEdges(predecessors: Record<number, number | null>) {
+  return Object.entries(predecessors)
+    .filter(([, pred]) => pred != null)
+    .map(([to, pred]) => [pred as number, Number(to)] as [number, number])
+}

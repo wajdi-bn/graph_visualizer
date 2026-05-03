@@ -9,8 +9,10 @@ import {
   isTree,
   label,
   palette,
+  requireConnectedGraph,
   requireNodes,
   requireUndirectedCustom,
+  requireWeightedGraph,
   setsFromParent,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
@@ -32,13 +34,13 @@ export const kruskal: Algorithm = {
   difficulty: 'intermediate',
   visualization: 'graph',
   code: `function kruskal(vertices, edges) {
-  const uf = new UnionFind(vertices);
+  const sets = new DisjointSet(vertices);
   const mst = [];
 
   edges.sort((a, b) => a.weight - b.weight);
   for (const edge of edges) {
-    if (uf.find(edge.from) !== uf.find(edge.to)) {
-      uf.union(edge.from, edge.to);
+    if (sets.find(edge.from) !== sets.find(edge.to)) {
+      sets.union(edge.from, edge.to);
       mst.push(edge);
     }
   }
@@ -48,14 +50,13 @@ export const kruskal: Algorithm = {
   description: `Kruskal
 
 Kruskal builds a minimum spanning tree by scanning edges from lightest to heaviest and accepting only edges that connect two different components.
-On disconnected graphs, it yields a minimum spanning forest.
 
 Time Complexity: O(E log E)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
   generateSteps(locale = 'en', exampleId, customGraph) {
     const demo = customGraph
-      ? graphFromInput(customGraph, { directed: false, defaultWeight: true })
+      ? graphFromInput(customGraph, { directed: false })
       : { ...getWeightedDemo(exampleId), directed: false }
     const nodes = demo.nodes
     const edges = [...demo.edges].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
@@ -68,7 +69,9 @@ Space Complexity: O(V)`,
         edges,
         'Kruskal builds an undirected minimum spanning tree. Turn off Directed graph in the editor.',
         'Kruskal construit un arbre couvrant minimal non oriente. Desactivez Graphe oriente dans l editeur.',
-      )
+      ) ??
+      requireWeightedGraph(locale, nodes, edges, false) ??
+      requireConnectedGraph(locale, nodes, edges)
     if (incompatible) return incompatible
     const parent: Record<number, number> = {}
     const rank: Record<number, number> = {}
@@ -187,7 +190,7 @@ Space Complexity: O(V)`,
           edgeStates: cloneEdgeStates(edgeStates),
           sets: currentSets,
           nodeColors: { ...nodeColors },
-          phase: d(locale, 'Cycle test with Union-Find', 'Test de cycle avec Union-Find'),
+          phase: d(locale, 'Cycle test with disjoint sets', 'Test de cycle avec ensembles disjoints'),
         }),
         description: accepted
           ? d(
@@ -215,12 +218,12 @@ Space Complexity: O(V)`,
             edgeStates: cloneEdgeStates(edgeStates),
             sets: completedSets,
             nodeColors: { ...nodeColors },
-            phase: d(locale, 'Forest complete', 'Foret complete'),
+            phase: d(locale, 'MST complete', 'ACM termine'),
           }),
           description: d(
             locale,
-            'All components are connected; remaining edges are no longer needed.',
-            'Toutes les composantes sont reliees; les autres aretes ne sont plus utiles.',
+            'The spanning tree has V - 1 edges; remaining edges are no longer needed.',
+            'L arbre couvrant contient V - 1 aretes; les autres aretes ne sont plus utiles.',
           ),
           codeLine: 12,
           variables: { edgesSelected: selectedEdgeObjects.length },
@@ -274,12 +277,12 @@ Space Complexity: O(V)`,
         nodeColors: forestColors.nodeColors,
         edgeColors: forestColors.edgeColors,
         sets: setsFromParent(nodes, parent),
-        phase: d(locale, 'Forest summary', 'Resume de la foret'),
+        phase: d(locale, 'MST summary', 'Resume de l ACM'),
       }),
       description: d(
         locale,
-        'Summary of the minimum spanning forest built by Kruskal.',
-        'Resume de la foret couvrante minimale construite par Kruskal.',
+        'Summary of the minimum spanning tree built by Kruskal.',
+        'Resume de l arbre couvrant minimal construit par Kruskal.',
       ),
       codeLine: 12,
       variables: {

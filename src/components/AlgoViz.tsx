@@ -31,6 +31,15 @@ const SIDEBAR_MAX = 260
 const CODEPANEL_MAX = 420
 const COLLAPSE_THRESHOLD = 100
 const MOBILE_BREAKPOINT = 768
+const SOURCE_SELECTABLE_ALGORITHMS = new Set([
+  'dijkstra',
+  'bellman-ford',
+  'bellman',
+  'bfs',
+  'dfs',
+  'shortest-unweighted-path',
+  'ford-fulkerson',
+])
 
 function getAlgorithmUrl(locale: string, algoId: string): string {
   return locale === 'fr' ? `/fr/${algoId}` : `/${algoId}`
@@ -104,7 +113,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     pause,
     currentStepData,
     selectedSourceNodeId,
-    setSelectedSourceNodeId,
+    selectedSinkNodeId,
   } = usePlayback(locale, initialAlgorithm)
 
   const sidebar = useResizablePanel({
@@ -191,10 +200,21 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
   const handleSourceNodeClick = useCallback(
     (nodeId: number) => {
       if (!selectedAlgorithm || !selectedExampleId) return
-      setSelectedSourceNodeId(nodeId)
-      selectExample(selectedExampleId, nodeId)
+      if (selectedAlgorithm.id === 'ford-fulkerson') {
+        // Max-flow needs two roles; a new pair starts with source, then the next click sets sink.
+        const next =
+          selectedSourceNodeId == null || selectedSinkNodeId != null
+            ? { sourceNodeId: nodeId, sinkNodeId: null }
+            : { sourceNodeId: selectedSourceNodeId, sinkNodeId: nodeId === selectedSourceNodeId ? null : nodeId }
+        selectExample(selectedExampleId, next)
+        return
+      }
+
+      // Source-based algorithms regenerate their steps from the clicked vertex.
+      if (!SOURCE_SELECTABLE_ALGORITHMS.has(selectedAlgorithm.id)) return
+      selectExample(selectedExampleId, { sourceNodeId: nodeId })
     },
-    [selectedAlgorithm, selectedExampleId, selectExample, setSelectedSourceNodeId],
+    [selectedAlgorithm, selectedExampleId, selectedSourceNodeId, selectedSinkNodeId, selectExample],
   )
 
   const runPropertyDemo = useCallback(
@@ -355,7 +375,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
       <div className="relative flex-1">
         {propertyDemo && (
           <div className="absolute left-3 top-3 z-20 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[11px] text-neutral-200 backdrop-blur">
-            {propertyDemo.title} · {propertyDemo.verdict}
+            {propertyDemo.title} - {propertyDemo.verdict}
           </div>
         )}
         {visualStep && (
@@ -363,7 +383,10 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
             step={visualStep}
             locale={locale}
             selectedSourceNodeId={selectedSourceNodeId}
-            onSourceNodeClick={handleSourceNodeClick}
+            selectedSinkNodeId={selectedSinkNodeId}
+            onSourceNodeClick={
+              SOURCE_SELECTABLE_ALGORITHMS.has(selectedAlgorithm.id) ? handleSourceNodeClick : undefined
+            }
           />
         )}
       </div>

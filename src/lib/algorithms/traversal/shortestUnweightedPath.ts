@@ -1,4 +1,4 @@
-import type { Algorithm, GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   adjacency,
@@ -10,6 +10,10 @@ import {
   label,
   reconstructPath,
   requireNodes,
+  requireValidSink,
+  requireValidSource,
+  resolveSinkNodeId,
+  resolveSourceNodeId,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import { getPathDemo, pathExampleOptions } from '@lib/algorithms/graphAlgorithmExamples'
 
@@ -45,15 +49,19 @@ This BFS-based treatment reconstructs the shortest chain between a source and a 
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
   examples: pathExampleOptions,
-  generateSteps(locale = 'en', exampleId, customGraph) {
+  generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
     const demo = customGraph ? graphFromInput(customGraph) : { ...getPathDemo(exampleId), directed: false }
     const { nodes, edges, directed } = demo
     const incompatible = requireNodes(locale, nodes, edges, directed)
     if (incompatible) return incompatible
 
-    const source = nodes[0]?.id
-    const target = nodes[nodes.length - 1]?.id
-    if (source == null || target == null) return requireNodes(locale, nodes, edges, directed)!
+    const source = resolveSourceNodeId(nodes, customGraph, options)
+    const sourceIssue = requireValidSource(locale, nodes, edges, directed, source)
+    if (sourceIssue) return sourceIssue
+    const target = resolveSinkNodeId(nodes, source, customGraph, options)
+    const targetIssue = requireValidSink(locale, nodes, edges, directed, target)
+    if (targetIssue) return targetIssue
+    if (source == null || target == null) return []
 
     const adj = adjacency(edges, directed)
     const visited = new Set<number>([source])
@@ -72,6 +80,8 @@ Space Complexity: O(V)`,
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed,
+        sourceNodeId: source,
+        sinkNodeId: target,
         currentNode: source,
         queue: [...queue],
         distances: cloneRecord(distances),
@@ -103,6 +113,8 @@ Space Complexity: O(V)`,
         steps.push({
           graph: baseGraph(nodes, edges, {
             directed,
+            sourceNodeId: source,
+            sinkNodeId: target,
             currentNode: current,
             currentEdge: [current, neighbor],
             visitedNodes: [...visited],
@@ -129,6 +141,8 @@ Space Complexity: O(V)`,
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed,
+        sourceNodeId: source,
+        sinkNodeId: target,
         visitedNodes: [...visited],
         currentNode: target,
         visitedEdges: [...selectedEdges],

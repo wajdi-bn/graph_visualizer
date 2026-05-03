@@ -9,15 +9,15 @@ Interactive graph theory visualizations with step-by-step playback, synchronized
 | Shortest Paths | Dijkstra, Bellman-Ford, Bellman |
 | Spanning Trees | Kruskal, Prim |
 | Connectivity | Connected Components, Kosaraju |
-| Traversal / Properties | Eulerian Path |
-| Coloring | Welsh-Powell |
-| Auxiliary Structures | Union-Find |
+| Traversal / Properties | Eulerian Path, Eulerian Circuit |
+| Coloring | Welsh-Powell, Edge Coloring |
+| Flows | Maximum Flow |
 
 ## Features
 
 - Graph-only algorithm catalog and generated routes
 - Directed and undirected graph visualizations
-- Edge weights, arrows, selected/rejected edge states, node coloring, distances, predecessors, stacks, orders, and disjoint sets
+- Edge weights, arrows, selected/rejected edge states, node coloring, distances, predecessors, stacks, and orders
 - English and French routes (`/` and `/fr`)
 - Dark and light themes with persisted preference
 - Responsive sidebar, playback controls, code panel, and mobile drawers

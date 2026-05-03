@@ -11,8 +11,10 @@ import {
   isTree,
   label,
   palette,
+  requireConnectedGraph,
   requireNodes,
   requireUndirectedCustom,
+  requireWeightedGraph,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   MinHeap,
@@ -61,15 +63,14 @@ export const prim: Algorithm = {
 }`,
   description: `Prim
 
-Prim grows a minimum spanning forest by extracting the cheapest outgoing edge from a min-heap.
-On disconnected graphs, it repeats the process for each component.
+Prim grows a minimum spanning tree by extracting the cheapest outgoing edge from a min-heap.
 
 Time Complexity: O(E log V)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
   generateSteps(locale = 'en', exampleId, customGraph) {
     const demo = customGraph
-      ? graphFromInput(customGraph, { directed: false, defaultWeight: true })
+      ? graphFromInput(customGraph, { directed: false })
       : { ...getWeightedDemo(exampleId), directed: false }
     const { nodes, edges } = demo
     const incompatible =
@@ -81,7 +82,9 @@ Space Complexity: O(V)`,
         edges,
         'Prim builds an undirected minimum spanning tree. Turn off Directed graph in the editor.',
         'Prim construit un arbre couvrant minimal non oriente. Desactivez Graphe oriente dans l editeur.',
-      )
+      ) ??
+      requireWeightedGraph(locale, nodes, edges, false) ??
+      requireConnectedGraph(locale, nodes, edges)
     if (incompatible) return incompatible
     const adj: Record<number, { node: number; weight: number; edge: GraphEdge }[]> = {}
     for (const edge of edges) {
@@ -264,12 +267,12 @@ Space Complexity: O(V)`,
         edgeStates: cloneEdgeStates(edgeStates),
         nodeColors: forestColors.nodeColors,
         edgeColors: forestColors.edgeColors,
-        phase: d(locale, 'Forest summary', 'Resume de la foret'),
+        phase: d(locale, 'MST summary', 'Resume de l ACM'),
       }),
       description: d(
         locale,
-        'Summary of the minimum spanning forest built by Prim.',
-        'Resume de la foret couvrante minimale construite par Prim.',
+        'Summary of the minimum spanning tree built by Prim.',
+        'Resume de l arbre couvrant minimal construit par Prim.',
       ),
       codeLine: 26,
       variables: {

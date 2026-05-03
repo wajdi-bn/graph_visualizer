@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import type { Algorithm, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, Step } from '@lib/types'
 import type { Locale } from '@i18n/translations'
 import {
   getSessionGraph,
@@ -18,28 +18,18 @@ export const SPEED_MAP: Record<number, number> = {
 
 export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null) {
   const [selectedSourceNodeId, setSelectedSourceNodeId] = useState<number | null>(null)
+  const [selectedSinkNodeId, setSelectedSinkNodeId] = useState<number | null>(null)
 
   const getSteps = useCallback(
-    (algorithm: Algorithm, exampleId?: string | null, sourceNodeId?: number | null): Step[] => {
+    (algorithm: Algorithm, exampleId?: string | null, options: AlgorithmRunOptions = {}): Step[] => {
       if (isSessionGraphExampleId(exampleId)) {
         const graph = getSessionGraph(getSessionGraphIdFromExampleId(exampleId))
         if (!graph) return []
-        const graphState = graphToState(graph)
-        // Add sourceNodeId if a custom source was selected
-        if (sourceNodeId != null) {
-          graphState.sourceNodeId = sourceNodeId
-        }
-        return algorithm.generateSteps(locale, undefined, graphState)
+        return algorithm.generateSteps(locale, undefined, graphToState(graph), options)
       }
-      // For predefined examples, also pass sourceNodeId if available
-      if (sourceNodeId != null) {
-        return algorithm.generateSteps(locale, exampleId ?? undefined, { 
-          nodes: [], 
-          edges: [], 
-          sourceNodeId 
-        })
-      }
-      return algorithm.generateSteps(locale, exampleId ?? undefined)
+
+      // Predefined demos keep their own nodes/edges; source and sink travel as run options.
+      return algorithm.generateSteps(locale, exampleId ?? undefined, undefined, options)
     },
     [locale],
   )
@@ -77,6 +67,8 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     clearAutoplayTimer()
     setIsPlaying(false)
     setSelectedAlgorithm(algo)
+    setSelectedSourceNodeId(null)
+    setSelectedSinkNodeId(null)
     const exampleId = algo.examples?.[0]?.id ?? null
     setSelectedExampleId(exampleId)
     const newSteps = getSteps(algo, exampleId)
@@ -85,18 +77,14 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     autoplayTimerRef.current = setTimeout(() => setIsPlaying(true), 600)
   }, [clearAutoplayTimer, getSteps])
 
-  const selectExample = useCallback((exampleId: string, sourceNodeId?: number | null) => {
+  const selectExample = useCallback((exampleId: string, options?: AlgorithmRunOptions) => {
     if (!selectedAlgorithm) return
     clearAutoplayTimer()
     setIsPlaying(false)
     setSelectedExampleId(exampleId)
-    // Update selected source node if provided
-    if (sourceNodeId != null) {
-      setSelectedSourceNodeId(sourceNodeId)
-    } else {
-      setSelectedSourceNodeId(null) // Reset when selecting new example
-    }
-    setSteps(getSteps(selectedAlgorithm, exampleId, sourceNodeId ?? null))
+    setSelectedSourceNodeId(options?.sourceNodeId ?? null)
+    setSelectedSinkNodeId(options?.sinkNodeId ?? null)
+    setSteps(getSteps(selectedAlgorithm, exampleId, options ?? {}))
     setCurrentStep(0)
   }, [selectedAlgorithm, clearAutoplayTimer, getSteps])
 
@@ -152,6 +140,8 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     setIsPlaying(false)
     setSelectedAlgorithm(null)
     setSelectedExampleId(null)
+    setSelectedSourceNodeId(null)
+    setSelectedSinkNodeId(null)
     setSteps([])
     setCurrentStep(0)
   }, [clearAutoplayTimer])
@@ -188,5 +178,7 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     currentStepData,
     selectedSourceNodeId,
     setSelectedSourceNodeId,
+    selectedSinkNodeId,
+    setSelectedSinkNodeId,
   }
 }

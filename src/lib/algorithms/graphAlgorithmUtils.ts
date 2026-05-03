@@ -1,5 +1,6 @@
 import type {
   AlgorithmGraphInput,
+  AlgorithmRunOptions,
   GraphEdge,
   GraphNode,
   GraphState,
@@ -133,6 +134,156 @@ export function requireDirectedCustom(
 ) {
   if (!graph || isDirectedGraph(graph)) return null
   return incompatibilityStep(locale, nodes, edges, false, messageEn, messageFr)
+}
+
+export function requireWeightedGraph(locale: string, nodes: GraphNode[], edges: GraphEdge[], directed = false) {
+  const missing = edges.find((edge) => !Number.isFinite(edge.weight))
+  if (!missing) return null
+  return incompatibilityStep(
+    locale,
+    nodes,
+    edges,
+    directed,
+    'This algorithm requires a weighted graph. Give every edge a finite numeric weight.',
+    'Cet algorithme exige un graphe pondere. Donnez un poids numerique fini a chaque arete.',
+  )
+}
+
+export function requirePositiveWeights(locale: string, nodes: GraphNode[], edges: GraphEdge[], directed = false) {
+  const invalid = edges.find((edge) => !Number.isFinite(edge.weight) || (edge.weight ?? 0) <= 0)
+  if (!invalid) return null
+  return incompatibilityStep(
+    locale,
+    nodes,
+    edges,
+    directed,
+    'All edge weights must be strictly positive for this graph type.',
+    'Tous les poids des aretes doivent etre strictement positifs pour ce type de graphe.',
+  )
+}
+
+export function requireConnectedGraph(locale: string, nodes: GraphNode[], edges: GraphEdge[]) {
+  if (isConnectedGraph(nodes, edges, false)) return null
+  return incompatibilityStep(
+    locale,
+    nodes,
+    edges,
+    false,
+    'This algorithm needs a connected undirected graph.',
+    'Cet algorithme exige un graphe non oriente connexe.',
+  )
+}
+
+export function resolveSourceNodeId(
+  nodes: GraphNode[],
+  customGraph?: AlgorithmGraphInput,
+  options?: AlgorithmRunOptions,
+) {
+  const candidate = options?.sourceNodeId ?? customGraph?.sourceNodeId ?? nodes[0]?.id ?? null
+  return candidate != null && nodes.some((node) => node.id === candidate) ? candidate : null
+}
+
+export function resolveSinkNodeId(
+  nodes: GraphNode[],
+  source: number | null,
+  customGraph?: AlgorithmGraphInput,
+  options?: AlgorithmRunOptions,
+) {
+  const fallback = [...nodes].reverse().find((node) => node.id !== source)?.id ?? null
+  const hasOptionSink = options != null && Object.hasOwn(options, 'sinkNodeId')
+  const hasGraphSink = customGraph != null && Object.hasOwn(customGraph, 'sinkNodeId')
+  const candidate = hasOptionSink
+    ? options?.sinkNodeId
+    : hasGraphSink
+      ? customGraph?.sinkNodeId
+      : fallback
+  return candidate != null && candidate !== source && nodes.some((node) => node.id === candidate)
+    ? candidate
+    : null
+}
+
+export function requireValidSource(
+  locale: string,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  directed: boolean,
+  source: number | null,
+) {
+  if (source != null) return null
+  return incompatibilityStep(
+    locale,
+    nodes,
+    edges,
+    directed,
+    'Choose a valid source vertex before running this algorithm.',
+    'Choisissez un sommet source valide avant de lancer cet algorithme.',
+  )
+}
+
+export function requireValidSink(
+  locale: string,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  directed: boolean,
+  sink: number | null,
+) {
+  if (sink != null) return null
+  return incompatibilityStep(
+    locale,
+    nodes,
+    edges,
+    directed,
+    'Choose a valid sink vertex different from the source.',
+    'Choisissez un puits valide different de la source.',
+  )
+}
+
+export function topologicalOrder(nodes: GraphNode[], edges: GraphEdge[]) {
+  const indegree: Record<number, number> = {}
+  const outgoing: Record<number, number[]> = {}
+  for (const node of nodes) {
+    indegree[node.id] = 0
+    outgoing[node.id] = []
+  }
+  for (const edge of edges) {
+    outgoing[edge.from] ??= []
+    outgoing[edge.from].push(edge.to)
+    indegree[edge.to] = (indegree[edge.to] ?? 0) + 1
+  }
+
+  const queue = nodes.filter((node) => indegree[node.id] === 0).map((node) => node.id)
+  const order: number[] = []
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    order.push(current)
+    for (const next of outgoing[current] ?? []) {
+      indegree[next] -= 1
+      if (indegree[next] === 0) queue.push(next)
+    }
+  }
+
+  return order.length === nodes.length ? order : null
+}
+
+export function hasNegativeWeightCycle(nodes: GraphNode[], edges: GraphEdge[]) {
+  const dist: Record<number, number> = {}
+  for (const node of nodes) dist[node.id] = 0
+
+  // Initializing every distance at zero is equivalent to adding a super source,
+  // so this detects negative cycles anywhere in the directed graph.
+  for (let pass = 0; pass < Math.max(0, nodes.length - 1); pass += 1) {
+    let changed = false
+    for (const edge of edges) {
+      const weight = edge.weight ?? 0
+      if (dist[edge.from] + weight < dist[edge.to]) {
+        dist[edge.to] = dist[edge.from] + weight
+        changed = true
+      }
+    }
+    if (!changed) return false
+  }
+
+  return edges.some((edge) => dist[edge.from] + (edge.weight ?? 0) < dist[edge.to])
 }
 
 export function formatDistances(nodes: GraphNode[], distances: Record<number, number | string>) {

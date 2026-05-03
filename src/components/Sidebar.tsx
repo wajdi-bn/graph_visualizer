@@ -41,12 +41,6 @@ const categoryColors: Record<string, { icon: string; badge: string; line: string
     line: 'border-rose-500/20',
     active: 'border-l-rose-400',
   },
-  'Auxiliary Structures': {
-    icon: 'text-cyan-400',
-    badge: 'bg-cyan-500/10 text-cyan-400/70',
-    line: 'border-cyan-500/20',
-    active: 'border-l-cyan-400',
-  },
 }
 
 const defaultCategoryColor = {

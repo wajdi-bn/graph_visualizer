@@ -1,4 +1,4 @@
-import type { Algorithm, GraphEdge, GraphNode, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
@@ -6,15 +6,18 @@ import {
   edgeKey,
   formatDistances,
   graphFromInput,
+  incompatibilityStep,
   inf,
   isDirectedGraph,
   label,
   requireDirectedCustom,
   requireNodes,
+  requireValidSource,
+  requireWeightedGraph,
+  resolveSourceNodeId,
+  topologicalOrder,
 } from '@lib/algorithms/graphAlgorithmUtils'
-import {
-  negativeWeightedExampleOptions,
-} from '@lib/algorithms/graphAlgorithmExamples'
+import { negativeWeightedExampleOptions } from '@lib/algorithms/graphAlgorithmExamples'
 
 export const bellman: Algorithm = {
   id: 'bellman',
@@ -22,28 +25,31 @@ export const bellman: Algorithm = {
   category: 'Shortest Paths',
   difficulty: 'advanced',
   visualization: 'graph',
-  code: `function bellman(edges, vertexCount, source) {
-  let previous = Array(vertexCount).fill(Infinity);
-  previous[source] = 0;
+  code: `function dagShortestPaths(graph, source) {
+  const order = topologicalSort(graph);
+  const dist = Array(graph.vertexCount).fill(Infinity);
+  const parent = Array(graph.vertexCount).fill(null);
+  dist[source] = 0;
 
-  for (let k = 1; k < vertexCount; k++) {
-    const current = previous.slice();
-    for (const { from, to, weight } of edges) {
-      current[to] = Math.min(current[to], previous[from] + weight);
+  for (const u of order) {
+    for (const edge of graph.outgoing[u]) {
+      if (dist[u] + edge.weight < dist[edge.to]) {
+        dist[edge.to] = dist[u] + edge.weight;
+        parent[edge.to] = u;
+      }
     }
-    previous = current;
   }
 
-  return previous;
+  return { dist, parent };
 }`,
-  description: `Bellman
+  description: `Bellman for DAGs
 
-Bellman's dynamic-programming shortest-path recurrence computes the best distance using at most k edges, then increases k until every simple shortest path is covered.
+This version computes shortest paths in a directed acyclic graph by relaxing edges in topological order.
 
-Time Complexity: O(VE)
+Time Complexity: O(V + E)
 Space Complexity: O(V)`,
   examples: negativeWeightedExampleOptions,
-  generateSteps(locale = 'en', _exampleId, customGraph) {
+  generateSteps(locale = 'en', _exampleId, customGraph, options?: AlgorithmRunOptions) {
     let nodes: GraphNode[] = [
       { id: 0, label: 'S', x: 55, y: 170 },
       { id: 1, label: 'A', x: 170, y: 80 },
@@ -61,108 +67,144 @@ Space Complexity: O(V)`,
       { from: 2, to: 4, weight: 12, directed: true },
       { from: 3, to: 4, weight: 6, directed: true },
     ]
+
     if (customGraph) {
-      const custom = graphFromInput(customGraph, {
-        directed: isDirectedGraph(customGraph),
-        defaultWeight: true,
-      })
+      const custom = graphFromInput(customGraph, { directed: isDirectedGraph(customGraph) })
       const incompatible = requireDirectedCustom(
         locale,
         customGraph,
         custom.nodes,
         custom.edges,
-        'Bellman needs a directed graph. Turn on Directed graph in the editor.',
-        'Bellman exige un graphe oriente. Activez Graphe oriente dans l editeur.',
+        'Bellman for DAGs needs a directed graph. Turn on Directed graph in the editor.',
+        'Bellman pour DAG exige un graphe oriente. Activez Graphe oriente dans l editeur.',
       )
       if (incompatible) return incompatible
       nodes = custom.nodes
       edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
     }
-    const source = nodes[0]?.id
-    if (source == null) return requireNodes(locale, nodes, edges, true)!
-    const sourceLabel = label(nodes, source)
-    let previous: Record<number, number | string> = {}
+
+    const incompatible =
+      requireNodes(locale, nodes, edges, true) ??
+      requireWeightedGraph(locale, nodes, edges, true)
+    if (incompatible) return incompatible
+
+    const order = topologicalOrder(nodes, edges)
+    if (!order) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        true,
+        'Bellman for DAGs requires a directed graph with no cycle.',
+        'Bellman pour DAG exige un graphe oriente sans cycle.',
+      )
+    }
+
+    const source = resolveSourceNodeId(nodes, customGraph, options)
+    const sourceIssue = requireValidSource(locale, nodes, edges, true, source)
+    if (sourceIssue) return sourceIssue
+    if (source == null) return []
+
+    const distances: Record<number, number | string> = {}
     const predecessors: Record<number, number | null> = {}
     const steps: Step[] = []
-
     for (const node of nodes) {
-      previous[node.id] = node.id === source ? 0 : inf
+      distances[node.id] = node.id === source ? 0 : inf
       predecessors[node.id] = null
     }
 
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed: true,
+        sourceNodeId: source,
         currentNode: source,
-        distances: cloneRecord(previous),
+        order,
+        distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
-        phase: d(locale, 'k = 0 edges', 'k = 0 arete'),
+        phase: d(locale, 'Topological order', 'Ordre topologique'),
       }),
       description: d(
         locale,
-        `With at most 0 edges, only the source ${sourceLabel} has distance 0.`,
-        `Avec au plus 0 arete, seule la source ${sourceLabel} a une distance de 0.`,
+        `The graph is acyclic. Relax vertices in topological order: ${order.map((id) => label(nodes, id)).join(', ')}.`,
+        `Le graphe est sans cycle. On relache les sommets dans l ordre topologique : ${order.map((id) => label(nodes, id)).join(', ')}.`,
       ),
-      codeLine: 3,
-      variables: { k: 0, distances: formatDistances(nodes, previous) },
+      codeLine: 2,
+      variables: { source: label(nodes, source), order: order.map((id) => label(nodes, id)).join(', ') },
     })
 
-    for (let k = 1; k < nodes.length; k++) {
-      const current = { ...previous }
-      let changed = false
-
-      for (const edge of edges) {
-        const fromValue = previous[edge.from]
-        const candidate = fromValue === inf ? inf : (fromValue as number) + (edge.weight ?? 1)
-        const oldValue = current[edge.to]
+    // In a DAG, one pass in topological order is enough because every predecessor is processed first.
+    for (const current of order) {
+      for (const edge of edges.filter((candidate) => candidate.from === current)) {
+        const fromValue = distances[edge.from]
+        const candidate = fromValue === inf ? inf : (fromValue as number) + (edge.weight ?? 0)
+        const oldValue = distances[edge.to]
         const improved = candidate !== inf && (oldValue === inf || (candidate as number) < (oldValue as number))
 
         if (improved) {
-          current[edge.to] = candidate
+          distances[edge.to] = candidate
           predecessors[edge.to] = edge.from
-          changed = true
         }
 
+        const selectedEdges = predecessorEdges(predecessors)
         steps.push({
           graph: baseGraph(nodes, edges, {
             directed: true,
-            currentNode: edge.from,
+            sourceNodeId: source,
+            currentNode: current,
             currentEdge: [edge.from, edge.to],
-            visitedEdges: Object.entries(predecessors)
-              .filter(([, pred]) => pred != null)
-              .map(([to, pred]) => [pred as number, Number(to)] as [number, number]),
-            selectedEdges: Object.entries(predecessors)
-              .filter(([, pred]) => pred != null)
-              .map(([to, pred]) => [pred as number, Number(to)] as [number, number]),
+            visitedEdges: selectedEdges,
+            selectedEdges,
             edgeStates: {
               [edgeKey(edge.from, edge.to, true)]: improved ? 'relaxed' : 'candidate',
             },
-            distances: cloneRecord(current),
+            order,
+            distances: cloneRecord(distances),
             predecessors: cloneRecord(predecessors),
-            phase: d(locale, `k = ${k} edges`, `k = ${k} aretes`),
+            phase: d(locale, 'Relax in topological order', 'Relacher dans l ordre topologique'),
           }),
           description: improved
             ? d(
                 locale,
-                `Using at most ${k} edges, ${label(nodes, edge.from)} -> ${label(nodes, edge.to)} improves ${label(nodes, edge.to)} to ${candidate}.`,
-                `Avec au plus ${k} aretes, ${label(nodes, edge.from)} -> ${label(nodes, edge.to)} ameliore ${label(nodes, edge.to)} a ${candidate}.`,
+                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} improves ${label(nodes, edge.to)} from ${oldValue} to ${candidate}.`,
+                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} ameliore ${label(nodes, edge.to)} de ${oldValue} a ${candidate}.`,
               )
             : d(
                 locale,
-                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} does not improve the k=${k} row.`,
-                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} n'ameliore pas la ligne k=${k}.`,
+                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} does not improve the current distance.`,
+                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} n ameliore pas la distance courante.`,
               ),
           codeLine: 8,
-          variables: { k, candidate: String(candidate), distances: formatDistances(nodes, current) },
+          variables: { edge: `${label(nodes, edge.from)}->${label(nodes, edge.to)}`, distances: formatDistances(nodes, distances) },
         })
       }
-
-      previous = current
-      if (!changed) break
     }
+
+    steps.push({
+      graph: baseGraph(nodes, edges, {
+        directed: true,
+        sourceNodeId: source,
+        currentNode: null,
+        visitedEdges: predecessorEdges(predecessors),
+        selectedEdges: predecessorEdges(predecessors),
+        order,
+        distances: cloneRecord(distances),
+        predecessors: cloneRecord(predecessors),
+        phase: d(locale, 'DAG shortest paths complete', 'Plus courts chemins DAG termines'),
+      }),
+      description: d(
+        locale,
+        `Shortest paths from ${label(nodes, source)} are complete. Distances: ${formatDistances(nodes, distances)}.`,
+        `Les plus courts chemins depuis ${label(nodes, source)} sont termines. Distances : ${formatDistances(nodes, distances)}.`,
+      ),
+      variables: { distances: formatDistances(nodes, distances) },
+    })
 
     return steps
   },
 }
 
-
+function predecessorEdges(predecessors: Record<number, number | null>) {
+  return Object.entries(predecessors)
+    .filter(([, pred]) => pred != null)
+    .map(([to, pred]) => [pred as number, Number(to)] as [number, number])
+}

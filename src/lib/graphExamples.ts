@@ -218,11 +218,12 @@ export const graphExampleCatalog: GraphExampleCatalogItem[] = [
       fr: 'Circuit eulerien',
     },
     description: {
-      en: 'Every edge can be used exactly once.',
-      fr: 'Chaque arete peut etre utilisee exactement une fois.',
+      en: 'Directed graph where every edge can be used exactly once.',
+      fr: 'Graphe oriente ou chaque arete peut etre utilisee exactement une fois.',
     },
     exampleIds: {
-      'eulerian-path': 'eulerian-circuit',
+      'eulerian-path': 'directed-circuit',
+      'eulerian-circuit': 'directed-circuit',
     },
     preview: {
       nodes: [
@@ -234,13 +235,13 @@ export const graphExampleCatalog: GraphExampleCatalogItem[] = [
         { id: 5, label: 'F', x: 48, y: 56 },
       ],
       edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2 },
-        { from: 2, to: 0 },
-        { from: 2, to: 3 },
-        { from: 3, to: 4 },
-        { from: 4, to: 5 },
-        { from: 5, to: 2 },
+        { from: 0, to: 1, directed: true },
+        { from: 1, to: 2, directed: true },
+        { from: 2, to: 0, directed: true },
+        { from: 2, to: 3, directed: true },
+        { from: 3, to: 4, directed: true },
+        { from: 4, to: 5, directed: true },
+        { from: 5, to: 2, directed: true },
       ],
     },
   },
@@ -313,74 +314,6 @@ export const graphExampleCatalog: GraphExampleCatalogItem[] = [
       ],
     },
   },
-  {
-    id: 'union-cycle-checks',
-    label: {
-      en: 'Cycle checks',
-      fr: 'Tests de cycle',
-    },
-    description: {
-      en: 'Union operations that end with cycle detection.',
-      fr: 'Operations union finissant par une detection de cycle.',
-    },
-    exampleIds: {
-      'union-find': 'cycle-checks',
-    },
-    preview: {
-      nodes: [
-        { id: 0, label: '0', x: 12, y: 20 },
-        { id: 1, label: '1', x: 34, y: 14 },
-        { id: 2, label: '2', x: 58, y: 20 },
-        { id: 3, label: '3', x: 82, y: 28 },
-        { id: 4, label: '4', x: 24, y: 52 },
-        { id: 5, label: '5', x: 56, y: 54 },
-        { id: 6, label: '6', x: 82, y: 54 },
-      ],
-      edges: [
-        { from: 0, to: 1 },
-        { from: 2, to: 3 },
-        { from: 4, to: 5 },
-        { from: 1, to: 2 },
-        { from: 5, to: 6 },
-        { from: 0, to: 3 },
-        { from: 3, to: 6 },
-      ],
-    },
-  },
-  {
-    id: 'union-two-clusters',
-    label: {
-      en: 'Two clusters',
-      fr: 'Deux groupes',
-    },
-    description: {
-      en: 'Union operations joining two separate groups.',
-      fr: 'Operations union reliant deux groupes separes.',
-    },
-    exampleIds: {
-      'union-find': 'two-clusters',
-    },
-    preview: {
-      nodes: [
-        { id: 0, label: '0', x: 12, y: 18 },
-        { id: 1, label: '1', x: 34, y: 14 },
-        { id: 2, label: '2', x: 58, y: 18 },
-        { id: 3, label: '3', x: 82, y: 28 },
-        { id: 4, label: '4', x: 26, y: 52 },
-        { id: 5, label: '5', x: 58, y: 54 },
-        { id: 6, label: '6', x: 84, y: 52 },
-      ],
-      edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2 },
-        { from: 2, to: 3 },
-        { from: 4, to: 5 },
-        { from: 5, to: 6 },
-        { from: 0, to: 3 },
-        { from: 3, to: 6 },
-      ],
-    },
-  },
 ]
 
 const incompatibilityReasons: Record<string, LocalizedText> = {
@@ -389,20 +322,20 @@ const incompatibilityReasons: Record<string, LocalizedText> = {
     fr: 'Dijkstra exige des graphes ponderes sans poids negatifs.',
   },
   'bellman-ford': {
-    en: 'Bellman-Ford uses directed weighted graphs.',
-    fr: 'Bellman-Ford utilise des graphes orientes ponderes.',
+    en: 'Bellman-Ford needs a weighted graph; undirected graphs must have strictly positive weights.',
+    fr: 'Bellman-Ford exige un graphe pondere; les graphes non orientes doivent avoir des poids strictement positifs.',
   },
   bellman: {
-    en: 'Bellman uses directed weighted graphs.',
-    fr: 'Bellman utilise des graphes orientes ponderes.',
+    en: 'Bellman for DAGs needs a directed acyclic weighted graph.',
+    fr: 'Bellman pour DAG exige un graphe oriente acyclique pondere.',
   },
   kruskal: {
-    en: 'Kruskal requires undirected weighted graphs.',
-    fr: 'Kruskal exige des graphes non orientes ponderes.',
+    en: 'Kruskal requires a connected undirected weighted graph.',
+    fr: 'Kruskal exige un graphe connexe non oriente pondere.',
   },
   prim: {
-    en: 'Prim requires undirected weighted graphs.',
-    fr: 'Prim exige des graphes non orientes ponderes.',
+    en: 'Prim requires a connected undirected weighted graph.',
+    fr: 'Prim exige un graphe connexe non oriente pondere.',
   },
   'connected-components': {
     en: 'Connected components uses undirected connectivity examples.',
@@ -413,20 +346,20 @@ const incompatibilityReasons: Record<string, LocalizedText> = {
     fr: 'Kosaraju exige des graphes orientes.',
   },
   'eulerian-path': {
-    en: 'Eulerian Path requires an Eulerian graph.',
-    fr: 'Le chemin eulerien exige un graphe eulerien.',
+    en: 'Eulerian Path requires a directed Eulerian graph.',
+    fr: 'Le chemin eulerien exige un graphe eulerien oriente.',
+  },
+  'eulerian-circuit': {
+    en: 'Eulerian Circuit requires a balanced directed Eulerian graph.',
+    fr: 'Le circuit eulerien exige un graphe eulerien oriente equilibre.',
   },
   'welsh-powell': {
     en: 'Welsh-Powell uses graph-coloring examples.',
     fr: 'Welsh-Powell utilise des graphes de coloration.',
   },
   'ford-fulkerson': {
-    en: 'Ford-Fulkerson requires directed capacity networks.',
-    fr: 'Ford-Fulkerson exige des reseaux de capacite orientes.',
-  },
-  'union-find': {
-    en: 'Union-Find uses union-operation examples.',
-    fr: 'Union-Find utilise des exemples d operations union.',
+    en: 'Ford-Fulkerson requires a directed weighted capacity network with a source and a sink.',
+    fr: 'Ford-Fulkerson exige un reseau de capacite oriente et pondere avec source et puits.',
   },
 }
 

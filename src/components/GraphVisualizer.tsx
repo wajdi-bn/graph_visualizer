@@ -22,6 +22,7 @@ interface GraphVisualizerProps {
   step: Step
   locale?: Locale
   selectedSourceNodeId?: number | null
+  selectedSinkNodeId?: number | null
   onSourceNodeClick?: (nodeId: number) => void
 }
 
@@ -170,6 +171,7 @@ export default function GraphVisualizer({
   step,
   locale = 'en',
   selectedSourceNodeId,
+  selectedSinkNodeId,
   onSourceNodeClick,
 }: GraphVisualizerProps) {
   const t = translations[locale]
@@ -198,6 +200,9 @@ export default function GraphVisualizer({
     .map((id) => nodes.find((node) => node.id === id)?.label)
     .filter(Boolean)
   const hasEdgeLabels = edges.some((edge) => edge.weight != null || edge.label)
+  // Prefer explicit UI selections, then fall back to the source/sink recorded by the current step.
+  const activeSourceNodeId = selectedSourceNodeId ?? graph.sourceNodeId ?? null
+  const activeSinkNodeId = selectedSinkNodeId ?? graph.sinkNodeId ?? null
 
   const chipClass =
     'text-xs font-mono bg-white/6 text-neutral-300 px-2 py-1 rounded-md border border-white/8'
@@ -318,8 +323,9 @@ export default function GraphVisualizer({
               ? readableTextColor(customColor)
               : 'var(--graph-node-text, #fff)'
 
-          const isSourceSelected = selectedSourceNodeId === node.id
-          
+          const isSourceSelected = activeSourceNodeId === node.id
+          const isSinkSelected = activeSinkNodeId === node.id
+
           return (
             <g key={node.id}>
               {isCurrent && (
@@ -354,6 +360,21 @@ export default function GraphVisualizer({
                   r={NODE_RADIUS + 6}
                   fill="none"
                   stroke="var(--graph-selected, #34d399)"
+                  strokeWidth={3}
+                  opacity={0.8}
+                  style={{
+                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  }}
+                />
+              )}
+
+              {isSinkSelected && (
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={NODE_RADIUS + 9}
+                  fill="none"
+                  stroke="#fb7185"
                   strokeWidth={3}
                   opacity={0.8}
                   style={{

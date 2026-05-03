@@ -8,9 +8,9 @@ import { prim } from '@lib/algorithms/spanning-trees/prim'
 import { connectedComponents } from '@lib/algorithms/connectivity/connectedComponents'
 import { kosaraju } from '@lib/algorithms/connectivity/kosaraju'
 import { eulerianPath } from '@lib/algorithms/traversal/eulerianPath'
+import { eulerianCircuit } from '@lib/algorithms/traversal/eulerianCircuit'
 import { welshPowell } from '@lib/algorithms/coloring/welshPowell'
 import { edgeColoring } from '@lib/algorithms/coloring/edgeColoring'
-import { unionFind } from '@lib/algorithms/structures/unionFind'
 import { fordFulkerson } from '@lib/algorithms/flows/fordFulkerson'
 
 export const algorithms: Algorithm[] = [
@@ -22,10 +22,10 @@ export const algorithms: Algorithm[] = [
   connectedComponents,
   kosaraju,
   eulerianPath,
+  eulerianCircuit,
   welshPowell,
   edgeColoring,
   fordFulkerson,
-  unionFind,
 ]
 
 export const categories: Category[] = [
@@ -52,9 +52,5 @@ export const categories: Category[] = [
   {
     name: 'Flows',
     algorithms: algorithms.filter((algorithm) => algorithm.category === 'Flows'),
-  },
-  {
-    name: 'Auxiliary Structures',
-    algorithms: algorithms.filter((algorithm) => algorithm.category === 'Auxiliary Structures'),
   },
 ]

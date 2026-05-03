@@ -9,7 +9,7 @@ const SHOWCASE_IDS = [
   'kruskal',
   'kosaraju',
   'welsh-powell',
-  'union-find',
+  'edge-coloring',
 ]
 
 const MAX_STEPS = 14

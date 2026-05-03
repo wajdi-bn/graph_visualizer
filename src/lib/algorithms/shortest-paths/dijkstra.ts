@@ -1,4 +1,4 @@
-import type { Algorithm, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   adjacency,
@@ -12,6 +12,8 @@ import {
   inf,
   label,
   requireNodes,
+  requireValidSource,
+  resolveSourceNodeId,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   getWeightedDemo,
@@ -71,7 +73,7 @@ Dijkstra finds shortest paths from a chosen source vertex in a weighted graph wi
 Time Complexity: O((V + E) log V)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
-  generateSteps(locale = 'en', exampleId, customGraph) {
+  generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
     const demo = customGraph
       ? graphFromInput(customGraph, { defaultWeight: true })
       : { ...getWeightedDemo(exampleId), directed: false }
@@ -120,20 +122,10 @@ Space Complexity: O(V)`,
       )
     }
     
-    // Set source: use provided sourceNodeId or default to first node
-    let source = customGraph?.sourceNodeId ?? nodes[0]?.id
-    
-    // Validate source node exists
-    if (source == null || !nodes.find(n => n.id === source)) {
-      return incompatibilityStep(
-        locale,
-        nodes,
-        edges,
-        directed,
-        'Invalid or missing source node. Please select a valid node as the source vertex.',
-        'Noeud source invalide ou manquant. Veuillez selectionner un noeud valide comme sommet source.',
-      )
-    }
+    const source = resolveSourceNodeId(nodes, customGraph, options)
+    const sourceIssue = requireValidSource(locale, nodes, edges, directed, source)
+    if (sourceIssue) return sourceIssue
+    if (source == null) return []
     const sourceLabel = label(nodes, source)
     const adj = adjacency(edges, directed)
     const distances: Record<number, number | string> = {}
@@ -152,6 +144,7 @@ Space Complexity: O(V)`,
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed,
+        sourceNodeId: source,
         currentNode: source,
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
@@ -159,8 +152,8 @@ Space Complexity: O(V)`,
       }),
       description: d(
         locale,
-        `✓ Source vertex selected: ${sourceLabel}. Its distance is 0 (Dijkstra requires a source). All other vertices are initially unreachable (Infinity). You can choose any node as the source before running the algorithm.`,
-        `✓ Sommet source selectionne : ${sourceLabel}. Sa distance vaut 0 (Dijkstra exige une source). Tous les autres sommets sont initialement inaccessibles (Infini). Vous pouvez choisir n'importe quel noeud comme source avant de lancer l'algorithme.`,
+        `Source vertex selected: ${sourceLabel}. Its distance is 0 (Dijkstra requires a source). All other vertices are initially unreachable (Infinity). You can choose any node as the source before running the algorithm.`,
+        `Sommet source selectionne : ${sourceLabel}. Sa distance vaut 0 (Dijkstra exige une source). Tous les autres sommets sont initialement inaccessibles (Infini). Vous pouvez choisir n'importe quel noeud comme source avant de lancer l'algorithme.`,
       ),
       codeLine: 5,
       variables: { source: sourceLabel, distances: formatDistances(nodes, distances) },
@@ -185,6 +178,7 @@ Space Complexity: O(V)`,
       steps.push({
         graph: baseGraph(nodes, edges, {
           visitedNodes: [...visitedNodes],
+          sourceNodeId: source,
           currentNode: current,
           currentEdge: null,
           visitedEdges: [...selectedEdges],
@@ -220,6 +214,7 @@ Space Complexity: O(V)`,
         steps.push({
           graph: baseGraph(nodes, edges, {
             visitedNodes: [...visitedNodes],
+            sourceNodeId: source,
             currentNode: current,
             currentEdge: [current, neighbor],
             visitedEdges: [...selectedEdges],
@@ -253,6 +248,7 @@ Space Complexity: O(V)`,
     steps.push({
       graph: baseGraph(nodes, edges, {
         visitedNodes: [...visitedNodes],
+        sourceNodeId: source,
         currentNode: null,
         visitedEdges: [...selectedEdges],
         selectedEdges: [...selectedEdges],

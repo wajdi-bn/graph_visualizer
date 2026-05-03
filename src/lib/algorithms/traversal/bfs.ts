@@ -1,4 +1,4 @@
-import type { Algorithm, GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   adjacency,
@@ -9,6 +9,8 @@ import {
   graphFromInput,
   label,
   requireNodes,
+  requireValidSource,
+  resolveSourceNodeId,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import { getTraversalDemo, traversalExampleOptions } from '@lib/algorithms/graphAlgorithmExamples'
 
@@ -43,14 +45,16 @@ Breadth-First Search explores a graph level by level from a source vertex. It is
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
   examples: traversalExampleOptions,
-  generateSteps(locale = 'en', exampleId, customGraph) {
+  generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
     const demo = customGraph ? graphFromInput(customGraph) : { ...getTraversalDemo(exampleId), directed: false }
     const { nodes, edges, directed } = demo
     const incompatible = requireNodes(locale, nodes, edges, directed)
     if (incompatible) return incompatible
 
-    const source = nodes[0]?.id
-    if (source == null) return requireNodes(locale, nodes, edges, directed)!
+    const source = resolveSourceNodeId(nodes, customGraph, options)
+    const sourceIssue = requireValidSource(locale, nodes, edges, directed, source)
+    if (sourceIssue) return sourceIssue
+    if (source == null) return []
 
     const adj = adjacency(edges, directed)
     const visited = new Set<number>([source])
@@ -70,6 +74,7 @@ Space Complexity: O(V)`,
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed,
+        sourceNodeId: source,
         currentNode: source,
         queue: [...queue],
         distances: cloneRecord(distances),
@@ -92,6 +97,7 @@ Space Complexity: O(V)`,
       steps.push({
         graph: baseGraph(nodes, edges, {
           directed,
+          sourceNodeId: source,
           currentNode: current,
           visitedNodes: [...visited],
           queue: [...queue],
@@ -125,6 +131,7 @@ Space Complexity: O(V)`,
         steps.push({
           graph: baseGraph(nodes, edges, {
             directed,
+            sourceNodeId: source,
             currentNode: current,
             currentEdge: [current, neighbor],
             visitedNodes: [...visited],
@@ -151,6 +158,7 @@ Space Complexity: O(V)`,
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed,
+        sourceNodeId: source,
         visitedNodes: [...visited],
         currentNode: null,
         visitedEdges: [...selectedEdges],

@@ -38,7 +38,13 @@ export const stronglyConnectedExampleOptions = [
 ]
 
 export const eulerianExampleOptions = [
-  { id: 'eulerian-circuit', label: { en: 'Eulerian circuit', fr: 'Circuit eulerien' } },
+  { id: 'directed-path', label: { en: 'Directed Eulerian path', fr: 'Chemin eulerien oriente' } },
+  { id: 'directed-circuit', label: { en: 'Directed Eulerian circuit', fr: 'Circuit eulerien oriente' } },
+]
+
+export const eulerianCircuitExampleOptions = [
+  { id: 'directed-circuit', label: { en: 'Directed Eulerian circuit', fr: 'Circuit eulerien oriente' } },
+  { id: 'directed-path', label: { en: 'Directed Eulerian path', fr: 'Chemin eulerien oriente' } },
 ]
 
 export const coloringExampleOptions = [

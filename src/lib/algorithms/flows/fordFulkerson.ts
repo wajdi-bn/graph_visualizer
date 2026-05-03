@@ -1,4 +1,4 @@
-import type { Algorithm, GraphEdge, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
@@ -9,6 +9,11 @@ import {
   label,
   requireDirectedCustom,
   requireNodes,
+  requireValidSink,
+  requireValidSource,
+  requireWeightedGraph,
+  resolveSinkNodeId,
+  resolveSourceNodeId,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   flowExampleOptions,
@@ -51,19 +56,31 @@ export const fordFulkerson: Algorithm = {
 }`,
   description: `Ford-Fulkerson
 
-Ford-Fulkerson computes a maximum flow by repeatedly sending more flow through an augmenting path in the residual network.
+Ford-Fulkerson here uses Edmonds-Karp: each augmenting path is chosen by BFS in the residual network.
 
-Time Complexity: O(E * maxFlow) with integral capacities
+Time Complexity: O(VE^2)
 Space Complexity: O(V + E)`,
   examples: flowExampleOptions,
-  generateSteps(locale = 'en', exampleId, customGraph) {
+  generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
     const demo = customGraph
-      ? graphFromInput(customGraph, { defaultWeight: true })
+      ? graphFromInput(customGraph)
       : { ...getFlowDemo(exampleId), directed: true }
     const { nodes } = demo
-    const edges = demo.edges.map((edge) => ({ ...edge, directed: true }))
-    const incompatible = requireNodes(locale, nodes, edges, true)
+    const inputEdges = demo.edges
+    const inputDirected = Boolean(demo.directed)
+    const incompatible = requireNodes(locale, nodes, inputEdges, inputDirected)
     if (incompatible) return incompatible
+    // Keep the original edge direction while reporting incompatibility, then normalize for residual flow.
+    const directedIssue = requireDirectedCustom(
+      locale,
+      customGraph,
+      nodes,
+      inputEdges,
+      'Ford-Fulkerson uses directed capacity networks. Turn on Directed graph in the editor.',
+      'Ford-Fulkerson utilise des reseaux de capacite orientes. Activez Graphe oriente dans l editeur.',
+    )
+    if (directedIssue) return directedIssue
+    const edges = inputEdges.map((edge) => ({ ...edge, directed: true }))
     if (nodes.length < 2) {
       return incompatibilityStep(
         locale,
@@ -74,15 +91,8 @@ Space Complexity: O(V + E)`,
         'Ford-Fulkerson exige au moins une source et un puits.',
       )
     }
-    const directedIssue = requireDirectedCustom(
-      locale,
-      customGraph,
-      nodes,
-      edges,
-      'Ford-Fulkerson uses directed capacity networks. Turn on Directed graph in the editor.',
-      'Ford-Fulkerson utilise des reseaux de capacite orientes. Activez Graphe oriente dans l editeur.',
-    )
-    if (directedIssue) return directedIssue
+    const weightedIssue = requireWeightedGraph(locale, nodes, edges, true)
+    if (weightedIssue) return weightedIssue
     const negativeCapacity = edges.find((edge) => (edge.weight ?? 1) < 0)
     if (negativeCapacity) {
       return incompatibilityStep(
@@ -95,8 +105,13 @@ Space Complexity: O(V + E)`,
       )
     }
 
-    const source = nodes[0].id
-    const sink = nodes[nodes.length - 1].id
+    const source = resolveSourceNodeId(nodes, customGraph, options)
+    const sourceIssue = requireValidSource(locale, nodes, edges, true, source)
+    if (sourceIssue) return sourceIssue
+    const sink = resolveSinkNodeId(nodes, source, customGraph, options)
+    const sinkIssue = requireValidSink(locale, nodes, edges, true, sink)
+    if (sinkIssue) return sinkIssue
+    if (source == null || sink == null) return []
     const sourceLabel = label(nodes, source)
     const sinkLabel = label(nodes, sink)
     const flow = new Array(edges.length).fill(0) as number[]
@@ -107,6 +122,8 @@ Space Complexity: O(V + E)`,
     steps.push({
       graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
         directed: true,
+        sourceNodeId: source,
+        sinkNodeId: sink,
         currentNode: source,
         nodeColors: {
           [source]: '#38bdf8',
@@ -130,6 +147,8 @@ Space Complexity: O(V + E)`,
           graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
             directed: true,
             visitedNodes: search.visited,
+            sourceNodeId: source,
+            sinkNodeId: sink,
             currentNode: null,
             nodeColors: {
               [source]: '#38bdf8',
@@ -158,6 +177,8 @@ Space Complexity: O(V + E)`,
         graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
           directed: true,
           visitedNodes: pathNodes,
+          sourceNodeId: source,
+          sinkNodeId: sink,
           visitedEdges: pathEdges,
           selectedEdges: pathEdges,
           edgeStates,
@@ -190,6 +211,8 @@ Space Complexity: O(V + E)`,
           graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
             directed: true,
             currentNode: residualEdge.to,
+            sourceNodeId: source,
+            sinkNodeId: sink,
             currentEdge: originalPair(original),
             visitedEdges: pathEdges,
             selectedEdges: pathEdges,
@@ -228,6 +251,8 @@ Space Complexity: O(V + E)`,
         graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
           directed: true,
           visitedNodes: pathNodes,
+          sourceNodeId: source,
+          sinkNodeId: sink,
           visitedEdges: pathEdges,
           selectedEdges: pathEdges,
           edgeStates,
@@ -280,6 +305,7 @@ function findAugmentingPath(
       const edge = edges[index]
       const capacity = edge.weight ?? 1
 
+      // Forward residual capacity adds flow; backward residual capacity can cancel previous flow.
       if (edge.from === current && capacity - flow[index] > 0 && !visited.has(edge.to)) {
         visited.add(edge.to)
         parent[edge.to] = {
