@@ -217,6 +217,24 @@ Applications:
 - Register allocation intuition
 - Map and conflict coloring`,
 
+  'ford-fulkerson': `Maximum Flow - Ford-Fulkerson
+
+Ford-Fulkerson computes a maximum flow from a source to a sink in a directed capacity network.
+
+How it works:
+1. Start with zero flow on every edge
+2. Search an augmenting path in the residual network
+3. Push the path bottleneck through each edge
+4. Repeat until no augmenting path remains
+
+Time Complexity: O(E * maxFlow) with integral capacities
+Space Complexity: O(V + E)
+
+Applications:
+- Network routing and bandwidth
+- Bipartite matching reductions
+- Source-sink capacity planning`,
+
   'union-find': `Union-Find
 
 Union-Find maintains disjoint sets with near-constant find and union operations. It is the auxiliary structure behind Kruskal's cycle checks.
@@ -399,6 +417,24 @@ Applications:
 - Allocation de registres
 - Coloration de cartes et conflits`,
 
+  'ford-fulkerson': `Flot maximum - Ford-Fulkerson
+
+Ford-Fulkerson calcule un flot maximum d'une source vers un puits dans un reseau oriente avec capacites.
+
+Fonctionnement:
+1. Commencer avec un flot nul sur chaque arete
+2. Chercher un chemin augmentant dans le reseau residuel
+3. Pousser le goulot du chemin sur chaque arete
+4. Repeter jusqu'a ce qu'il n'existe plus de chemin augmentant
+
+Complexite temporelle: O(E * flot max) avec capacites entieres
+Complexite spatiale: O(V + E)
+
+Applications:
+- Routage reseau et bande passante
+- Reductions vers le couplage biparti
+- Planification de capacites source-puits`,
+
   'union-find': `Union-Find
 
 Union-Find maintient des ensembles disjoints avec des operations find et union presque constantes. C'est la structure auxiliaire derriere les tests de cycle de Kruskal.
@@ -422,7 +458,7 @@ export const translations: Record<Locale, Translations> = {
   en: {
     siteTitle: 'GraphForce',
     siteDescription:
-      'Interactive graph theory visualizations for shortest paths, spanning trees, connectivity, coloring, and Union-Find.',
+      'Interactive graph theory visualizations for shortest paths, spanning trees, connectivity, coloring, flows, and Union-Find.',
     welcomeTitle: 'GraphForce',
     welcomeDescription:
       'Select a graph algorithm from the sidebar to watch each step unfold.\nThe visualizer focuses on classic graph theory concepts and problems.',
@@ -468,6 +504,7 @@ export const translations: Record<Locale, Translations> = {
       Connectivity: 'Connectivity',
       'Traversal / Properties': 'Traversal / Properties',
       Coloring: 'Coloring',
+      Flows: 'Flows',
       'Auxiliary Structures': 'Auxiliary Structures',
     },
     algorithmNames: {
@@ -480,6 +517,7 @@ export const translations: Record<Locale, Translations> = {
       kosaraju: 'Kosaraju',
       'eulerian-path': 'Eulerian Path',
       'welsh-powell': 'Welsh-Powell',
+      'ford-fulkerson': 'Maximum Flow',
       'union-find': 'Union-Find',
     },
     algorithmDescriptions: enDescriptions,
@@ -487,7 +525,7 @@ export const translations: Record<Locale, Translations> = {
   fr: {
     siteTitle: 'GraphForce',
     siteDescription:
-      'Visualisations interactives de theorie des graphes : plus courts chemins, arbres couvrants, connectivite, coloration et Union-Find.',
+      'Visualisations interactives de theorie des graphes : plus courts chemins, arbres couvrants, connectivite, coloration, flots et Union-Find.',
     welcomeTitle: 'GraphForce',
     welcomeDescription:
       'Selectionnez un algorithme de graphe dans la barre laterale pour suivre chaque etape.\nLe visualiseur se concentre sur les concepts classiques de theorie des graphes.',
@@ -533,6 +571,7 @@ export const translations: Record<Locale, Translations> = {
       Connectivity: 'Connectivite',
       'Traversal / Properties': 'Parcours / proprietes',
       Coloring: 'Coloration',
+      Flows: 'Flots',
       'Auxiliary Structures': 'Structures auxiliaires',
     },
     algorithmNames: {
@@ -545,6 +584,7 @@ export const translations: Record<Locale, Translations> = {
       kosaraju: 'Kosaraju',
       'eulerian-path': 'Chemin eulerien',
       'welsh-powell': 'Welsh-Powell',
+      'ford-fulkerson': 'Flot maximum',
       'union-find': 'Union-Find',
     },
     algorithmDescriptions: frDescriptions,

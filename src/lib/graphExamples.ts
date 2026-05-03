@@ -280,6 +280,40 @@ export const graphExampleCatalog: GraphExampleCatalogItem[] = [
     },
   },
   {
+    id: 'capacity-network',
+    label: {
+      en: 'Capacity network',
+      fr: 'Reseau de capacites',
+    },
+    description: {
+      en: 'Directed network with capacities for maximum-flow algorithms.',
+      fr: 'Reseau oriente avec capacites pour les algorithmes de flot maximum.',
+    },
+    exampleIds: {
+      'ford-fulkerson': 'standard-flow',
+    },
+    preview: {
+      nodes: [
+        { id: 0, label: 'S', x: 12, y: 34 },
+        { id: 1, label: 'A', x: 36, y: 14 },
+        { id: 2, label: 'B', x: 36, y: 54 },
+        { id: 3, label: 'C', x: 66, y: 14 },
+        { id: 4, label: 'D', x: 66, y: 54 },
+        { id: 5, label: 'T', x: 90, y: 34 },
+      ],
+      edges: [
+        { from: 0, to: 1, weight: 10, directed: true },
+        { from: 0, to: 2, weight: 8, directed: true },
+        { from: 1, to: 3, weight: 5, directed: true },
+        { from: 1, to: 2, weight: 2, directed: true },
+        { from: 1, to: 4, weight: 4, directed: true },
+        { from: 2, to: 4, weight: 10, directed: true },
+        { from: 3, to: 5, weight: 7, directed: true },
+        { from: 4, to: 5, weight: 10, directed: true },
+      ],
+    },
+  },
+  {
     id: 'union-cycle-checks',
     label: {
       en: 'Cycle checks',
@@ -385,6 +419,10 @@ const incompatibilityReasons: Record<string, LocalizedText> = {
   'welsh-powell': {
     en: 'Welsh-Powell uses graph-coloring examples.',
     fr: 'Welsh-Powell utilise des graphes de coloration.',
+  },
+  'ford-fulkerson': {
+    en: 'Ford-Fulkerson requires directed capacity networks.',
+    fr: 'Ford-Fulkerson exige des reseaux de capacite orientes.',
   },
   'union-find': {
     en: 'Union-Find uses union-operation examples.',

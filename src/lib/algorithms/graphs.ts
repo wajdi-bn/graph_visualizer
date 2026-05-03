@@ -7,4 +7,5 @@ export { connectedComponents } from '@lib/algorithms/connectivity/connectedCompo
 export { kosaraju } from '@lib/algorithms/connectivity/kosaraju'
 export { eulerianPath } from '@lib/algorithms/traversal/eulerianPath'
 export { welshPowell } from '@lib/algorithms/coloring/welshPowell'
+export { fordFulkerson } from '@lib/algorithms/flows/fordFulkerson'
 export { unionFind } from '@lib/algorithms/structures/unionFind'

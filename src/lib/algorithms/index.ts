@@ -10,6 +10,7 @@ import { kosaraju } from '@lib/algorithms/connectivity/kosaraju'
 import { eulerianPath } from '@lib/algorithms/traversal/eulerianPath'
 import { welshPowell } from '@lib/algorithms/coloring/welshPowell'
 import { unionFind } from '@lib/algorithms/structures/unionFind'
+import { fordFulkerson } from '@lib/algorithms/flows/fordFulkerson'
 
 export const algorithms: Algorithm[] = [
   dijkstra,
@@ -21,6 +22,7 @@ export const algorithms: Algorithm[] = [
   kosaraju,
   eulerianPath,
   welshPowell,
+  fordFulkerson,
   unionFind,
 ]
 
@@ -44,6 +46,10 @@ export const categories: Category[] = [
   {
     name: 'Coloring',
     algorithms: algorithms.filter((algorithm) => algorithm.category === 'Coloring'),
+  },
+  {
+    name: 'Flows',
+    algorithms: algorithms.filter((algorithm) => algorithm.category === 'Flows'),
   },
   {
     name: 'Auxiliary Structures',

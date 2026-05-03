@@ -75,6 +75,56 @@ export const regularExampleOptions = [
   { id: 'irregular', label: { en: 'Irregular graph', fr: 'Graphe non regulier' } },
 ]
 
+export const flowExampleOptions = [
+  { id: 'standard-flow', label: { en: 'Capacity network', fr: 'Reseau de capacites' } },
+  { id: 'bottleneck-flow', label: { en: 'Bottleneck network', fr: 'Reseau avec goulot' } },
+]
+
+export function getFlowDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (exampleId === 'bottleneck-flow') {
+    return {
+      nodes: [
+        { id: 0, label: 'S', x: 70, y: 170 },
+        { id: 1, label: 'A', x: 185, y: 85 },
+        { id: 2, label: 'B', x: 185, y: 250 },
+        { id: 3, label: 'C', x: 320, y: 85 },
+        { id: 4, label: 'D', x: 320, y: 250 },
+        { id: 5, label: 'T', x: 450, y: 170 },
+      ],
+      edges: [
+        { from: 0, to: 1, weight: 12, directed: true },
+        { from: 0, to: 2, weight: 9, directed: true },
+        { from: 1, to: 3, weight: 5, directed: true },
+        { from: 1, to: 4, weight: 7, directed: true },
+        { from: 2, to: 4, weight: 4, directed: true },
+        { from: 3, to: 5, weight: 8, directed: true },
+        { from: 4, to: 5, weight: 6, directed: true },
+      ],
+    }
+  }
+
+  return {
+    nodes: [
+      { id: 0, label: 'S', x: 70, y: 170 },
+      { id: 1, label: 'A', x: 185, y: 85 },
+      { id: 2, label: 'B', x: 185, y: 250 },
+      { id: 3, label: 'C', x: 320, y: 85 },
+      { id: 4, label: 'D', x: 320, y: 250 },
+      { id: 5, label: 'T', x: 450, y: 170 },
+    ],
+    edges: [
+      { from: 0, to: 1, weight: 10, directed: true },
+      { from: 0, to: 2, weight: 8, directed: true },
+      { from: 1, to: 3, weight: 5, directed: true },
+      { from: 1, to: 2, weight: 2, directed: true },
+      { from: 1, to: 4, weight: 4, directed: true },
+      { from: 2, to: 4, weight: 10, directed: true },
+      { from: 3, to: 5, weight: 7, directed: true },
+      { from: 4, to: 5, weight: 10, directed: true },
+    ],
+  }
+}
+
 export function getWeightedDemo(exampleId?: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
   if (exampleId === 'dense') {
     return {
