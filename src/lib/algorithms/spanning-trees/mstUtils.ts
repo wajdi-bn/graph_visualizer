@@ -1,11 +1,16 @@
 import type { GraphEdge, GraphNode } from '@lib/types'
-import { adjacency } from '@lib/algorithms/graphAlgorithmUtils'
+import { adjacency, edgeKey, palette } from '@lib/algorithms/graphAlgorithmUtils'
 
 export interface ForestResult {
   edges: GraphEdge[]
   totalCost: number
   componentCount: number
   targetEdgeCount: number
+}
+
+export interface ForestColoring {
+  nodeColors: Record<number, string>
+  edgeColors: Record<string, string>
 }
 
 export function getForestTargetEdgeCount(nodeCount: number, componentCount: number) {
@@ -39,6 +44,42 @@ export function countComponents(nodes: GraphNode[], edges: GraphEdge[]) {
 
 export function sumEdgeWeights(edges: GraphEdge[]) {
   return edges.reduce((sum, edge) => sum + (edge.weight ?? 1), 0)
+}
+
+export function buildForestColors(nodes: GraphNode[], edges: GraphEdge[]): ForestColoring {
+  const nodeColors: Record<number, string> = {}
+  const edgeColors: Record<string, string> = {}
+  if (nodes.length === 0) return { nodeColors, edgeColors }
+
+  const adj = adjacency(edges, false)
+  const visited = new Set<number>()
+  let colorIndex = 0
+
+  for (const node of nodes) {
+    if (visited.has(node.id)) continue
+    const color = palette[colorIndex % palette.length]
+    colorIndex += 1
+    const stack = [node.id]
+    visited.add(node.id)
+
+    while (stack.length > 0) {
+      const current = stack.pop()!
+      nodeColors[current] = color
+      for (const { node: neighbor } of adj[current] ?? []) {
+        if (visited.has(neighbor)) continue
+        visited.add(neighbor)
+        stack.push(neighbor)
+      }
+    }
+  }
+
+  for (const edge of edges) {
+    const color = nodeColors[edge.from] ?? nodeColors[edge.to]
+    if (!color) continue
+    edgeColors[edgeKey(edge.from, edge.to, false)] = color
+  }
+
+  return { nodeColors, edgeColors }
 }
 
 export class MinHeap<T extends { key: number }> {

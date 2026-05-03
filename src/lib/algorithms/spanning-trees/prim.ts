@@ -10,11 +10,13 @@ import {
   inf,
   isTree,
   label,
+  palette,
   requireNodes,
   requireUndirectedCustom,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   MinHeap,
+  buildForestColors,
   computeKruskalForest,
   sumEdgeWeights,
 } from '@lib/algorithms/spanning-trees/mstUtils'
@@ -103,6 +105,8 @@ Space Complexity: O(V)`,
     const steps: Step[] = []
     const heap = new MinHeap<{ node: number; key: number }>()
     let componentIndex = 0
+    const nodeColors: Record<number, string> = {}
+    let activeComponentColor: string | null = null
 
     for (const node of nodes) {
       key[node.id] = inf
@@ -113,6 +117,8 @@ Space Complexity: O(V)`,
 
     const startComponent = (startId: number) => {
       componentIndex += 1
+      activeComponentColor = palette[(componentIndex - 1) % palette.length]
+      nodeColors[startId] = activeComponentColor
       key[startId] = 0
       keyNum[startId] = 0
       heap.push({ node: startId, key: 0 })
@@ -141,6 +147,7 @@ Space Complexity: O(V)`,
           currentNode: startId,
           distances: cloneRecord(key),
           predecessors: cloneRecord(parent),
+          nodeColors: cloneRecord(nodeColors),
           phase,
         }),
         description,
@@ -165,6 +172,9 @@ Space Complexity: O(V)`,
 
         const current = entry.node
         inTree.add(current)
+        if (activeComponentColor && !nodeColors[current]) {
+          nodeColors[current] = activeComponentColor
+        }
         if (parent[current] != null && parentEdge[current]) {
           selectedEdges.push([parent[current]!, current])
           selectedEdgeObjects.push(parentEdge[current]!)
@@ -181,6 +191,7 @@ Space Complexity: O(V)`,
             edgeStates: cloneEdgeStates(edgeStates),
             distances: cloneRecord(key),
             predecessors: cloneRecord(parent),
+            nodeColors: cloneRecord(nodeColors),
             phase: d(locale, 'Extract min from heap', 'Extraire le minimum du tas'),
           }),
           description:
@@ -219,6 +230,7 @@ Space Complexity: O(V)`,
                 edgeStates: cloneEdgeStates(edgeStates),
                 distances: cloneRecord(key),
                 predecessors: cloneRecord(parent),
+                nodeColors: cloneRecord(nodeColors),
                 phase: d(locale, 'Update frontier keys', 'Mettre a jour les cles de frontiere'),
               }),
               description: d(
@@ -238,6 +250,7 @@ Space Complexity: O(V)`,
     const validTree = isTree(nodes, selectedEdgeObjects)
     const kruskalSummary = computeKruskalForest(nodes, edges)
     const crossCheckMatch = Math.abs(kruskalSummary.totalCost - totalCost) < 1e-9
+    const forestColors = buildForestColors(nodes, selectedEdgeObjects)
     const edgeList = selectedEdgeObjects.map(
       (edge) => `${label(nodes, edge.from)}-${label(nodes, edge.to)} (w=${edge.weight ?? 1})`,
     )
@@ -249,6 +262,8 @@ Space Complexity: O(V)`,
         visitedEdges: [...selectedEdges],
         selectedEdges: [...selectedEdges],
         edgeStates: cloneEdgeStates(edgeStates),
+        nodeColors: forestColors.nodeColors,
+        edgeColors: forestColors.edgeColors,
         phase: d(locale, 'Forest summary', 'Resume de la foret'),
       }),
       description: d(
