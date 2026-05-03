@@ -1,15 +1,25 @@
-import type { Algorithm, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, GraphEdge, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
+  adjacency,
   cloneEdgeStates,
   edgeKey,
   graphFromInput,
+  isTree,
   label,
+  palette,
   requireNodes,
   requireUndirectedCustom,
   setsFromParent,
 } from '@lib/algorithms/graphAlgorithmUtils'
+import {
+  buildForestColors,
+  computePrimForest,
+  countComponents,
+  getForestTargetEdgeCount,
+  sumEdgeWeights,
+} from '@lib/algorithms/spanning-trees/mstUtils'
 import {
   getWeightedDemo,
   weightedExampleOptions,
@@ -38,6 +48,7 @@ export const kruskal: Algorithm = {
   description: `Kruskal
 
 Kruskal builds a minimum spanning tree by scanning edges from lightest to heaviest and accepting only edges that connect two different components.
+On disconnected graphs, it yields a minimum spanning forest.
 
 Time Complexity: O(E log E)
 Space Complexity: O(V)`,
@@ -62,9 +73,41 @@ Space Complexity: O(V)`,
     const parent: Record<number, number> = {}
     const rank: Record<number, number> = {}
     const selectedEdges: [number, number][] = []
+    const selectedEdgeObjects: GraphEdge[] = []
     const rejectedEdges: [number, number][] = []
     const edgeStates: Record<string, GraphVisualState> = {}
     const steps: Step[] = []
+    const componentCount = countComponents(nodes, edges)
+    const targetEdgeCount = getForestTargetEdgeCount(nodes.length, componentCount)
+    let stoppedEarly = false
+    const nodeColors: Record<number, string> = {}
+    const componentColorByNode: Record<number, string> = {}
+    const componentVisited = new Set<number>()
+    const adj = adjacency(edges)
+    let componentColorIndex = 0
+
+    for (const node of nodes) {
+      if (componentVisited.has(node.id)) continue
+      const color = palette[componentColorIndex % palette.length]
+      componentColorIndex += 1
+      const stack = [node.id]
+      componentVisited.add(node.id)
+
+      while (stack.length > 0) {
+        const current = stack.pop()!
+        componentColorByNode[current] = color
+        for (const { node: neighbor } of adj[current] ?? []) {
+          if (componentVisited.has(neighbor)) continue
+          componentVisited.add(neighbor)
+          stack.push(neighbor)
+        }
+      }
+    }
+
+    const startNodeId = nodes[0]?.id ?? null
+    if (startNodeId != null) {
+      nodeColors[startNodeId] = componentColorByNode[startNodeId] ?? palette[0]
+    }
 
     const find = (x: number): number => {
       if (parent[x] !== x) parent[x] = find(parent[x])
@@ -88,9 +131,12 @@ Space Complexity: O(V)`,
       rank[node.id] = 0
     }
 
+    const initialSets = setsFromParent(nodes, parent)
     steps.push({
       graph: baseGraph(nodes, edges, {
-        sets: setsFromParent(nodes, parent),
+        currentNode: startNodeId,
+        sets: initialSets,
+        nodeColors: { ...nodeColors },
         phase: d(locale, 'Sort edges by weight', 'Trier les aretes par poids'),
       }),
       description: d(
@@ -103,24 +149,44 @@ Space Complexity: O(V)`,
     })
 
     for (const edge of edges) {
+      if (selectedEdgeObjects.length >= targetEdgeCount) {
+        stoppedEarly = true
+        break
+      }
       const accepted = find(edge.from) !== find(edge.to)
+      const fromWasColored = Boolean(nodeColors[edge.from])
+      const toWasColored = Boolean(nodeColors[edge.to])
+      let stepCurrentNode: number | null = edge.from
       if (accepted) {
         union(edge.from, edge.to)
         selectedEdges.push([edge.from, edge.to])
+        selectedEdgeObjects.push(edge)
         edgeStates[edgeKey(edge.from, edge.to)] = 'selected'
+
+        const color = componentColorByNode[edge.from] ?? componentColorByNode[edge.to]
+        if (color) {
+          if (!nodeColors[edge.from]) nodeColors[edge.from] = color
+          if (!nodeColors[edge.to]) nodeColors[edge.to] = color
+        }
+
+        if (!fromWasColored && nodeColors[edge.from]) stepCurrentNode = edge.from
+        else if (!toWasColored && nodeColors[edge.to]) stepCurrentNode = edge.to
       } else {
         rejectedEdges.push([edge.from, edge.to])
         edgeStates[edgeKey(edge.from, edge.to)] = 'rejected'
       }
 
+      const currentSets = setsFromParent(nodes, parent)
       steps.push({
         graph: baseGraph(nodes, edges, {
+          currentNode: stepCurrentNode,
           currentEdge: [edge.from, edge.to],
           visitedEdges: [...selectedEdges],
           selectedEdges: [...selectedEdges],
           rejectedEdges: [...rejectedEdges],
           edgeStates: cloneEdgeStates(edgeStates),
-          sets: setsFromParent(nodes, parent),
+          sets: currentSets,
+          nodeColors: { ...nodeColors },
           phase: d(locale, 'Cycle test with Union-Find', 'Test de cycle avec Union-Find'),
         }),
         description: accepted
@@ -137,7 +203,116 @@ Space Complexity: O(V)`,
         codeLine: accepted ? 8 : 7,
         variables: { edge: `${label(nodes, edge.from)}-${label(nodes, edge.to)}`, accepted },
       })
+
+      if (accepted && selectedEdgeObjects.length >= targetEdgeCount) {
+        stoppedEarly = true
+        const completedSets = setsFromParent(nodes, parent)
+        steps.push({
+          graph: baseGraph(nodes, edges, {
+            visitedEdges: [...selectedEdges],
+            selectedEdges: [...selectedEdges],
+            rejectedEdges: [...rejectedEdges],
+            edgeStates: cloneEdgeStates(edgeStates),
+            sets: completedSets,
+            nodeColors: { ...nodeColors },
+            phase: d(locale, 'Forest complete', 'Foret complete'),
+          }),
+          description: d(
+            locale,
+            'All components are connected; remaining edges are no longer needed.',
+            'Toutes les composantes sont reliees; les autres aretes ne sont plus utiles.',
+          ),
+          codeLine: 12,
+          variables: { edgesSelected: selectedEdgeObjects.length },
+        })
+        break
+      }
     }
+
+    for (const node of nodes) {
+      if (nodeColors[node.id]) continue
+      nodeColors[node.id] = componentColorByNode[node.id]
+      const soloSets = setsFromParent(nodes, parent)
+      steps.push({
+        graph: baseGraph(nodes, edges, {
+          currentNode: node.id,
+          visitedEdges: [...selectedEdges],
+          selectedEdges: [...selectedEdges],
+          rejectedEdges: [...rejectedEdges],
+          edgeStates: cloneEdgeStates(edgeStates),
+          sets: soloSets,
+          nodeColors: { ...nodeColors },
+          phase: d(locale, 'Single-vertex component', 'Composante monovertex'),
+        }),
+        description: d(
+          locale,
+          `${label(nodes, node.id)} remains isolated, forming its own component.`,
+          `${label(nodes, node.id)} reste isole et forme sa propre composante.`,
+        ),
+        codeLine: 12,
+        variables: { vertex: label(nodes, node.id) },
+      })
+    }
+
+    const totalCost = sumEdgeWeights(selectedEdgeObjects)
+    const validTree = isTree(nodes, selectedEdgeObjects)
+    const primSummary = computePrimForest(nodes, edges)
+    const crossCheckMatch = Math.abs(primSummary.totalCost - totalCost) < 1e-9
+    const forestColors = buildForestColors(nodes, selectedEdgeObjects)
+    const edgeList = selectedEdgeObjects.map(
+      (edge) => `${label(nodes, edge.from)}-${label(nodes, edge.to)} (w=${edge.weight ?? 1})`,
+    )
+    const emptyEdgeLine = d(locale, '- none', '- aucune')
+    const edgeListLines = edgeList.length > 0 ? edgeList.map((edge) => `- ${edge}`) : [emptyEdgeLine]
+
+    steps.push({
+      graph: baseGraph(nodes, edges, {
+        visitedEdges: [...selectedEdges],
+        selectedEdges: [...selectedEdges],
+        rejectedEdges: [...rejectedEdges],
+        edgeStates: cloneEdgeStates(edgeStates),
+        nodeColors: forestColors.nodeColors,
+        edgeColors: forestColors.edgeColors,
+        sets: setsFromParent(nodes, parent),
+        phase: d(locale, 'Forest summary', 'Resume de la foret'),
+      }),
+      description: d(
+        locale,
+        'Summary of the minimum spanning forest built by Kruskal.',
+        'Resume de la foret couvrante minimale construite par Kruskal.',
+      ),
+      codeLine: 12,
+      variables: {
+        totalCost,
+        validTree,
+        components: componentCount,
+        edgesSelected: selectedEdgeObjects.length,
+        targetEdges: targetEdgeCount,
+        stoppedEarly,
+        primCost: primSummary.totalCost,
+        costMatch: crossCheckMatch,
+      },
+      consoleOutput: [
+        d(locale, `Edges (${selectedEdgeObjects.length}):`, `Aretes (${selectedEdgeObjects.length}) :`),
+        ...edgeListLines,
+        d(locale, `Total cost: ${totalCost}`, `Cout total : ${totalCost}`),
+        d(
+          locale,
+          `Valid spanning tree: ${validTree ? 'yes' : 'no'}`,
+          `Arbre couvrant valide : ${validTree ? 'oui' : 'non'}`,
+        ),
+        d(
+          locale,
+          `Components: ${componentCount} (${componentCount === 1 ? 'connected' : 'forest'})`,
+          `Composantes : ${componentCount} (${componentCount === 1 ? 'connexe' : 'foret'})`,
+        ),
+        d(
+          locale,
+          `Cross-check: Prim=${primSummary.totalCost}, Kruskal=${totalCost}, match=${crossCheckMatch ? 'yes' : 'no'}`,
+          `Verification croisee : Prim=${primSummary.totalCost}, Kruskal=${totalCost}, ok=${crossCheckMatch ? 'oui' : 'non'}`,
+        ),
+      ],
+    })
 
     return steps
   },
