@@ -217,6 +217,24 @@ Applications:
 - Register allocation intuition
 - Map and conflict coloring`,
 
+  'edge-coloring': `Edge Coloring
+
+Edge coloring assigns colors to edges so that two edges sharing a vertex do not use the same color.
+
+How it works:
+1. Order edges by how many other edges touch them
+2. Inspect colors already used on adjacent edges
+3. Assign the first available color to the current edge
+4. Repeat until every edge is colored
+
+Time Complexity: O(E^2)
+Space Complexity: O(E)
+
+Applications:
+- Timetabling with pair conflicts
+- Frequency assignment intuition
+- Edge-conflict visualization`,
+
   'ford-fulkerson': `Maximum Flow - Ford-Fulkerson
 
 Ford-Fulkerson computes a maximum flow from a source to a sink in a directed capacity network.
@@ -417,6 +435,24 @@ Applications:
 - Allocation de registres
 - Coloration de cartes et conflits`,
 
+  'edge-coloring': `Coloration des aretes
+
+La coloration des aretes attribue des couleurs aux aretes pour que deux aretes partageant un sommet n utilisent pas la meme couleur.
+
+Fonctionnement:
+1. Ordonner les aretes selon le nombre d autres aretes qui les touchent
+2. Observer les couleurs deja utilisees sur les aretes adjacentes
+3. Attribuer la premiere couleur disponible a l arete courante
+4. Repeter jusqu a colorier toutes les aretes
+
+Complexite temporelle: O(E^2)
+Complexite spatiale: O(E)
+
+Applications:
+- Planification avec conflits par paire
+- Attribution de frequences
+- Visualisation des conflits entre aretes`,
+
   'ford-fulkerson': `Flot maximum - Ford-Fulkerson
 
 Ford-Fulkerson calcule un flot maximum d'une source vers un puits dans un reseau oriente avec capacites.
@@ -517,6 +553,7 @@ export const translations: Record<Locale, Translations> = {
       kosaraju: 'Kosaraju',
       'eulerian-path': 'Eulerian Path',
       'welsh-powell': 'Welsh-Powell',
+      'edge-coloring': 'Edge Coloring',
       'ford-fulkerson': 'Maximum Flow',
       'union-find': 'Union-Find',
     },
@@ -584,6 +621,7 @@ export const translations: Record<Locale, Translations> = {
       kosaraju: 'Kosaraju',
       'eulerian-path': 'Chemin eulerien',
       'welsh-powell': 'Welsh-Powell',
+      'edge-coloring': 'Coloration des aretes',
       'ford-fulkerson': 'Flot maximum',
       'union-find': 'Union-Find',
     },

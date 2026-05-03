@@ -61,6 +61,15 @@ export type DragState =
       start: { x: number; y: number }
       end: { x: number; y: number }
     }
+  | {
+      type: 'edge-curve'
+      pointerId: number
+      edgeIndex: number
+      startCurve: number
+      startPointerCurve: number
+      originalDraft: EditorDraft
+      moved: boolean
+    }
 
 export interface GraphEditorModalProps {
   open: boolean

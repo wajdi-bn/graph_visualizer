@@ -7,7 +7,7 @@ import {
   NODE_RADIUS,
   SELECTED_COLOR,
   WAITING_EDGE_COLOR,
-  endpoint,
+  getEdgePathGeometry,
   readableTextColor,
 } from './graphEditorUtils'
 
@@ -33,7 +33,7 @@ interface GraphEditorCanvasProps {
   handleWheel: (event: React.WheelEvent<SVGSVGElement>) => void
   openContextMenu: (event: React.MouseEvent, selectionForTarget?: Selection) => void
   handleCanvasPointerDown: (event: React.PointerEvent<SVGRectElement>) => void
-  handleEdgePointerDown: (event: React.PointerEvent<SVGLineElement>, index: number) => void
+  handleEdgePointerDown: (event: React.PointerEvent<SVGElement>, index: number) => void
   handleNodePointerDown: (event: React.PointerEvent<SVGGElement>, nodeId: number) => void
 }
 
@@ -79,7 +79,7 @@ export function GraphEditorCanvas({
               markerHeight="5"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--graph-stroke-default, #22d3ee)" />
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
             </marker>
             <pattern id="graph-editor-grid" width="24" height="24" patternUnits="userSpaceOnUse">
               <path
@@ -130,26 +130,18 @@ export function GraphEditorCanvas({
 
             const selectedEdge = selectedEdgeIndexes.includes(index)
             const color = selectedEdge ? SELECTED_COLOR : edge.color ?? DEFAULT_EDGE_COLOR
-            const start = draft.directed
-              ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
-              : { x: from.x, y: from.y }
-            const end = draft.directed
-              ? endpoint(from.x, from.y, to.x, to.y, NODE_RADIUS + 4)
-              : { x: to.x, y: to.y }
-            const midX = (start.x + end.x) / 2
-            const midY = (start.y + end.y) / 2
+            const geometry = getEdgePathGeometry(edge, index, draft.edges, from, to, draft.directed)
             const label = edge.label ?? edge.weight
 
             return (
               <g key={`${edge.from}-${edge.to}-${index}`}>
-                <line
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
+                <path
+                  d={geometry.path}
                   stroke="transparent"
                   strokeWidth={14}
                   strokeLinecap="round"
+                  fill="none"
+                  className="cursor-grab active:cursor-grabbing"
                   onPointerDown={(event) => handleEdgePointerDown(event, index)}
                   onContextMenu={(event) =>
                     openContextMenu(
@@ -159,29 +151,41 @@ export function GraphEditorCanvas({
                         : { nodeIds: [], edgeIndexes: [index] },
                     )}
                 />
-                <line
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
+                <path
+                  d={geometry.path}
                   stroke={color}
                   strokeWidth={selectedEdge ? 3 : 2}
                   strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
                   markerEnd={draft.directed ? 'url(#graph-editor-arrow)' : undefined}
+                  pointerEvents="none"
                 />
+                {selectedEdge && (
+                  <circle
+                    cx={geometry.control.x}
+                    cy={geometry.control.y}
+                    r={5}
+                    fill={SELECTED_COLOR}
+                    stroke="var(--graph-weight-bg, #020617)"
+                    strokeWidth={1.5}
+                    opacity={0.95}
+                    pointerEvents="none"
+                  />
+                )}
                 {label != null && (
                   <>
                     <circle
-                      cx={midX}
-                      cy={midY}
+                      cx={geometry.label.x}
+                      cy={geometry.label.y}
                       r={11}
                       fill="var(--graph-weight-bg, #020617)"
                       stroke={color}
                       strokeWidth={1}
                     />
                     <text
-                      x={midX}
-                      y={midY}
+                      x={geometry.label.x}
+                      y={geometry.label.y}
                       textAnchor="middle"
                       dominantBaseline="central"
                       fill="var(--graph-weight-text, #e2e8f0)"

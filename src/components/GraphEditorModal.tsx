@@ -23,6 +23,7 @@ import {
   DEFAULT_EDGE_COLOR,
   DEFAULT_NODE_COLOR,
   HISTORY_LIMIT,
+  MAX_EDGE_CURVE,
   NODE_RADIUS,
   blankDraft,
   clamp,
@@ -31,8 +32,9 @@ import {
   defaultViewBox,
   draftFromGraph,
   draftFromJson,
-  edgeKey,
+  edgeCurveFromPoint,
   emptySelection,
+  getEdgePathGeometry,
   getMarqueeRect,
   getSelectionEdgeIndexes,
   getSelectionPayload,
@@ -361,12 +363,6 @@ export default function GraphEditorModal({
       directed: current.directed,
       color: DEFAULT_EDGE_COLOR,
     }
-    const nextKey = edgeKey(nextEdge, current.directed)
-    const exists = current.edges.some((edge) => edgeKey(edge, current.directed) === nextKey)
-    if (exists) {
-      setNotice(locale === 'fr' ? 'Cette arete existe deja.' : 'That edge already exists.')
-      return
-    }
 
     applyDraft((draftValue) => ({ ...draftValue, edges: [...draftValue.edges, nextEdge] }), {
       keepSelection: true,
@@ -469,7 +465,6 @@ export default function GraphEditorModal({
 
     if (tool === 'node') {
       addNodeAt(point.x, point.y)
-      setTool('select')
       return
     }
 
@@ -543,7 +538,7 @@ export default function GraphEditorModal({
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  function handleEdgePointerDown(event: React.PointerEvent<SVGLineElement>, index: number) {
+  function handleEdgePointerDown(event: React.PointerEvent<SVGElement>, index: number) {
     if (event.button === 2) return
     event.stopPropagation()
     setContextMenu(null)
@@ -558,6 +553,24 @@ export default function GraphEditorModal({
 
     setSelection({ nodeIds: [], edgeIndexes: [index] })
     setEdgeStartId(null)
+
+    const edge = draftRef.current.edges[index]
+    const from = edge ? draftRef.current.nodes.find((node) => node.id === edge.from) : null
+    const to = edge ? draftRef.current.nodes.find((node) => node.id === edge.to) : null
+    if (!edge || !from || !to) return
+
+    const point = getCanvasPoint(event.clientX, event.clientY)
+    const geometry = getEdgePathGeometry(edge, index, draftRef.current.edges, from, to, draftRef.current.directed)
+    dragRef.current = {
+      type: 'edge-curve',
+      pointerId: event.pointerId,
+      edgeIndex: index,
+      startCurve: geometry.curve,
+      startPointerCurve: edgeCurveFromPoint(geometry.start, geometry.end, point),
+      originalDraft: cloneDraft(draftRef.current),
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
@@ -584,6 +597,34 @@ export default function GraphEditorModal({
         }),
       }
       replaceDraft(next)
+      return
+    }
+
+    if (drag.type === 'edge-curve') {
+      const edge = draftRef.current.edges[drag.edgeIndex]
+      const from = edge ? draftRef.current.nodes.find((node) => node.id === edge.from) : null
+      const to = edge ? draftRef.current.nodes.find((node) => node.id === edge.to) : null
+      if (!edge || !from || !to) return
+
+      const point = getCanvasPoint(event.clientX, event.clientY)
+      const geometry = getEdgePathGeometry(edge, drag.edgeIndex, draftRef.current.edges, from, to, draftRef.current.directed)
+      const pointerCurve = edgeCurveFromPoint(geometry.start, geometry.end, point)
+      const nextCurve = Math.round(clamp(
+        drag.startCurve + pointerCurve - drag.startPointerCurve,
+        -MAX_EDGE_CURVE,
+        MAX_EDGE_CURVE,
+      ) * 10) / 10
+
+      if (Math.abs(nextCurve - drag.startCurve) > 0.1) drag.moved = true
+
+      replaceDraft({
+        ...draftRef.current,
+        edges: draftRef.current.edges.map((currentEdge, edgeIndex) =>
+          edgeIndex === drag.edgeIndex
+            ? { ...currentEdge, curve: nextCurve }
+            : currentEdge,
+        ),
+      })
       return
     }
 
@@ -614,6 +655,10 @@ export default function GraphEditorModal({
 
     // Dragging nodes mutates the draft live; the history snapshot is committed on release.
     if (drag.type === 'nodes' && drag.moved) {
+      pushHistorySnapshot(drag.originalDraft)
+    }
+
+    if (drag.type === 'edge-curve' && drag.moved) {
       pushHistorySnapshot(drag.originalDraft)
     }
 

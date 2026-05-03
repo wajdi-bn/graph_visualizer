@@ -9,6 +9,7 @@ import { connectedComponents } from '@lib/algorithms/connectivity/connectedCompo
 import { kosaraju } from '@lib/algorithms/connectivity/kosaraju'
 import { eulerianPath } from '@lib/algorithms/traversal/eulerianPath'
 import { welshPowell } from '@lib/algorithms/coloring/welshPowell'
+import { edgeColoring } from '@lib/algorithms/coloring/edgeColoring'
 import { unionFind } from '@lib/algorithms/structures/unionFind'
 import { fordFulkerson } from '@lib/algorithms/flows/fordFulkerson'
 
@@ -22,6 +23,7 @@ export const algorithms: Algorithm[] = [
   kosaraju,
   eulerianPath,
   welshPowell,
+  edgeColoring,
   fordFulkerson,
   unionFind,
 ]

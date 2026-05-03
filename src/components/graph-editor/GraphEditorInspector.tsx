@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { Locale } from '@i18n/translations'
 import type { GraphEdge, GraphNode } from '@lib/types'
 import type { EditorDraft } from './graphEditorTypes'
-import { DEFAULT_EDGE_COLOR, DEFAULT_NODE_COLOR, colorValue } from './graphEditorUtils'
+import { DEFAULT_EDGE_COLOR, DEFAULT_NODE_COLOR, MAX_EDGE_CURVE, colorValue, getEdgeCurve } from './graphEditorUtils'
 
 interface GraphEditorInspectorProps {
   locale: Locale
@@ -33,6 +33,11 @@ export function GraphEditorInspector({
   handleSave,
   handleDeleteGraph,
 }: GraphEditorInspectorProps) {
+  const selectedEdgeCurve =
+    selectedEdge && selectedEdgeIndex != null
+      ? Math.round(getEdgeCurve(selectedEdge, selectedEdgeIndex, draft.edges))
+      : 0
+
   return (
     <aside className="max-h-[280px] shrink-0 overflow-y-auto border-t border-white/8 bg-white/[0.02] p-3 lg:max-h-none lg:w-[290px] lg:border-l lg:border-t-0">
       <div className="space-y-4">
@@ -135,6 +140,26 @@ export function GraphEditorInspector({
 
           {selectedEdge && selectedEdgeIndex != null && (
             <div className="space-y-2">
+              <FieldLabel label={locale === 'fr' ? 'Courbure' : 'Curve'}>
+                <div className="grid grid-cols-[1fr_58px] gap-2">
+                  <input
+                    type="range"
+                    min={-MAX_EDGE_CURVE}
+                    max={MAX_EDGE_CURVE}
+                    value={selectedEdgeCurve}
+                    onChange={(event) => updateEdge(selectedEdgeIndex, { curve: Number(event.target.value) })}
+                    className="h-8 w-full accent-cyan-300"
+                  />
+                  <input
+                    type="number"
+                    min={-MAX_EDGE_CURVE}
+                    max={MAX_EDGE_CURVE}
+                    value={selectedEdgeCurve}
+                    onChange={(event) => updateEdge(selectedEdgeIndex, { curve: Number(event.target.value) })}
+                    className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
+                  />
+                </div>
+              </FieldLabel>
               <div className="grid grid-cols-2 gap-2">
                 <FieldLabel label={locale === 'fr' ? 'Source' : 'Source'}>
                   <select

@@ -16,6 +16,8 @@ export const DEFAULT_EDGE_COLOR = '#475569'
 export const SELECTED_COLOR = '#22d3ee'
 export const WAITING_EDGE_COLOR = '#facc15'
 export const HISTORY_LIMIT = 80
+export const EDGE_CURVE_STEP = 34
+export const MAX_EDGE_CURVE = 160
 
 export function defaultViewBox(): ViewBox {
   return {
@@ -122,6 +124,89 @@ export function endpoint(fromX: number, fromY: number, toX: number, toY: number,
     x: toX - (dx / length) * offset,
     y: toY - (dy / length) * offset,
   }
+}
+
+export function edgePairKey(edge: Pick<GraphEdge, 'from' | 'to'>) {
+  return edge.from <= edge.to ? `${edge.from}-${edge.to}` : `${edge.to}-${edge.from}`
+}
+
+export function getEdgeCurve(edge: GraphEdge, index: number, edges: GraphEdge[]) {
+  if (Number.isFinite(edge.curve)) return clamp(Number(edge.curve), -MAX_EDGE_CURVE, MAX_EDGE_CURVE)
+
+  const pairKey = edgePairKey(edge)
+  const parallelIndexes = edges
+    .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
+    .filter(({ candidate }) => edgePairKey(candidate) === pairKey)
+    .map(({ candidateIndex }) => candidateIndex)
+
+  if (parallelIndexes.length <= 1) return 0
+
+  const position = parallelIndexes.indexOf(index)
+  const middle = (parallelIndexes.length - 1) / 2
+  return (position - middle) * EDGE_CURVE_STEP
+}
+
+export function getEdgePathGeometry(
+  edge: GraphEdge,
+  index: number,
+  edges: GraphEdge[],
+  from: GraphNode,
+  to: GraphNode,
+  directed: boolean,
+) {
+  const start = directed
+    ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
+    : { x: from.x, y: from.y }
+  const end = directed
+    ? endpoint(from.x, from.y, to.x, to.y, NODE_RADIUS + 4)
+    : { x: to.x, y: to.y }
+  const curve = getEdgeCurve(edge, index, edges)
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const length = Math.sqrt(dx * dx + dy * dy)
+  const normal = length > 0
+    ? { x: -dy / length, y: dx / length }
+    : { x: 0, y: -1 }
+  const mid = {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2,
+  }
+  const control = {
+    x: mid.x + normal.x * curve,
+    y: mid.y + normal.y * curve,
+  }
+  const label = {
+    x: (start.x + 2 * control.x + end.x) / 4,
+    y: (start.y + 2 * control.y + end.y) / 4,
+  }
+  const path = Math.abs(curve) < 0.5
+    ? `M ${start.x} ${start.y} L ${end.x} ${end.y}`
+    : `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`
+
+  return { start, end, control, label, curve, path }
+}
+
+export function edgeCurveFromPoint(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  point: { x: number; y: number },
+) {
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const length = Math.sqrt(dx * dx + dy * dy)
+  const normal = length > 0
+    ? { x: -dy / length, y: dx / length }
+    : { x: 0, y: -1 }
+  const mid = {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2,
+  }
+
+  return clamp(
+    (point.x - mid.x) * normal.x + (point.y - mid.y) * normal.y,
+    -MAX_EDGE_CURVE,
+    MAX_EDGE_CURVE,
+  )
 }
 
 export function displayDate(value: string, locale: Locale) {

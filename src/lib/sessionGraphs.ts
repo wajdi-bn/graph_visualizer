@@ -59,6 +59,7 @@ function cleanEdge(edge: Partial<GraphEdge>, nodeIds: Set<number>, directed: boo
     directed,
     label: typeof edge.label === 'string' && edge.label.trim() ? edge.label.trim() : undefined,
     color: typeof edge.color === 'string' && edge.color ? edge.color : undefined,
+    curve: Number.isFinite(edge.curve) ? Number(edge.curve) : undefined,
   }
 }
 

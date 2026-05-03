@@ -16,6 +16,7 @@ export interface GraphEdge {
   directed?: boolean
   label?: string
   color?: string
+  curve?: number
   state?: GraphVisualState
 }
 

@@ -43,6 +43,10 @@ export function edgeKey(from: number, to: number, directed = false) {
   return directed || from <= to ? `${from}-${to}` : `${to}-${from}`
 }
 
+export function edgeInstanceKey(edge: Pick<GraphEdge, 'from' | 'to'>, index: number, directed = false) {
+  return `${edgeKey(edge.from, edge.to, directed)}#${index}`
+}
+
 export function adjacency(edges: GraphEdge[], directed = false) {
   const adj: Record<number, { node: number; weight: number }[]> = {}
   for (const edge of edges) {

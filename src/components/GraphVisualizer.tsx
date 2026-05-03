@@ -3,6 +3,7 @@ import type { Locale } from '@i18n/translations'
 import { translations } from '@i18n/translations'
 
 const NODE_RADIUS = 22
+const EDGE_CURVE_STEP = 24
 
 const stateColors: Record<GraphVisualState, string> = {
   default: 'var(--graph-edge-default, #242424)',
@@ -26,6 +27,14 @@ function edgeKey(from: number, to: number, directed = false) {
   return directed || from <= to ? `${from}-${to}` : `${to}-${from}`
 }
 
+function edgeInstanceKey(edge: GraphEdge, index: number, directed = false) {
+  return `${edgeKey(edge.from, edge.to, directed)}#${index}`
+}
+
+function edgePairKey(edge: Pick<GraphEdge, 'from' | 'to'>) {
+  return edge.from <= edge.to ? `${edge.from}-${edge.to}` : `${edge.to}-${edge.from}`
+}
+
 function pairIncludes(pairs: [number, number][] | undefined, from: number, to: number, directed: boolean) {
   return pairs?.some(([a, b]) =>
     directed ? a === from && b === to : (a === from && b === to) || (a === to && b === from),
@@ -37,10 +46,11 @@ function formatNodeList(ids: number[] | undefined, nodes: GraphNode[]) {
   return ids.map((id) => nodes.find((node) => node.id === id)?.label ?? String(id)).join(', ')
 }
 
-function resolveEdgeState(edge: GraphEdge, graph: NonNullable<Step['graph']>): GraphVisualState {
+function resolveEdgeState(edge: GraphEdge, index: number, graph: NonNullable<Step['graph']>): GraphVisualState {
   const directed = graph.directed || edge.directed || false
   const key = edgeKey(edge.from, edge.to, directed)
   const undirectedKey = edgeKey(edge.from, edge.to, false)
+  const instanceKey = edgeInstanceKey(edge, index, directed)
 
   if (graph.currentEdge) {
     const [from, to] = graph.currentEdge
@@ -49,6 +59,7 @@ function resolveEdgeState(edge: GraphEdge, graph: NonNullable<Step['graph']>): G
       : (from === edge.from && to === edge.to) || (from === edge.to && to === edge.from)
     if (currentMatches) return 'current'
   }
+  if (graph.edgeStates?.[instanceKey]) return graph.edgeStates[instanceKey]
   if (graph.edgeStates?.[key]) return graph.edgeStates[key]
   if (graph.edgeStates?.[undirectedKey]) return graph.edgeStates[undirectedKey]
   if (pairIncludes(graph.rejectedEdges, edge.from, edge.to, directed)) return 'rejected'
@@ -87,6 +98,62 @@ function hexToRgb(color: string) {
     g: parseInt(value.slice(2, 4), 16),
     b: parseInt(value.slice(4, 6), 16),
   }
+}
+
+function getEdgeCurve(edge: GraphEdge, index: number, edges: GraphEdge[]) {
+  if (Number.isFinite(edge.curve)) return Number(edge.curve)
+
+  const pairKey = edgePairKey(edge)
+  const parallelIndexes = edges
+    .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
+    .filter(({ candidate }) => edgePairKey(candidate) === pairKey)
+    .map(({ candidateIndex }) => candidateIndex)
+
+  if (parallelIndexes.length <= 1) return 0
+
+  const position = parallelIndexes.indexOf(index)
+  const middle = (parallelIndexes.length - 1) / 2
+  return (position - middle) * EDGE_CURVE_STEP
+}
+
+function getEdgePathGeometry(
+  edge: GraphEdge,
+  index: number,
+  edges: GraphEdge[],
+  from: GraphNode,
+  to: GraphNode,
+  directed: boolean,
+) {
+  const end = directed
+    ? endpoint(from.x, from.y, to.x, to.y, NODE_RADIUS + 4)
+    : { x: to.x, y: to.y }
+  const start = directed
+    ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
+    : { x: from.x, y: from.y }
+  const curve = getEdgeCurve(edge, index, edges)
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const length = Math.sqrt(dx * dx + dy * dy)
+  const normal = length > 0
+    ? { x: -dy / length, y: dx / length }
+    : { x: 0, y: -1 }
+  const mid = {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2,
+  }
+  const control = {
+    x: mid.x + normal.x * curve,
+    y: mid.y + normal.y * curve,
+  }
+  const label = {
+    x: (start.x + 2 * control.x + end.x) / 4,
+    y: (start.y + 2 * control.y + end.y) / 4,
+  }
+  const path = Math.abs(curve) < 0.5
+    ? `M ${start.x} ${start.y} L ${end.x} ${end.y}`
+    : `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`
+
+  return { path, label }
 }
 
 function readableTextColor(fill: string | undefined) {
@@ -149,20 +216,17 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          {Object.entries(stateColors).map(([state, color]) => (
-            <marker
-              key={state}
-              id={`arrow-${state}`}
-              viewBox="0 0 10 10"
-              refX="8"
-              refY="5"
-              markerWidth="5"
-              markerHeight="5"
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
-            </marker>
-          ))}
+          <marker
+            id="arrow-context"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="5"
+            markerHeight="5"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+          </marker>
         </defs>
 
         {edges.map((edge, index) => {
@@ -171,49 +235,42 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
           if (!from || !to) return null
 
           const directed = graph.directed || edge.directed || false
-          const state = resolveEdgeState(edge, graph)
+          const state = resolveEdgeState(edge, index, graph)
           const color =
+            graph.edgeColors?.[edgeInstanceKey(edge, index, directed)] ??
             graph.edgeColors?.[edgeKey(edge.from, edge.to, directed)] ??
             edge.color ??
             stateColors[state]
-          const end = directed
-            ? endpoint(from.x, from.y, to.x, to.y, NODE_RADIUS + 4)
-            : { x: to.x, y: to.y }
-          const start = directed
-            ? endpoint(to.x, to.y, from.x, from.y, NODE_RADIUS + 2)
-            : { x: from.x, y: from.y }
-          const midX = (start.x + end.x) / 2
-          const midY = (start.y + end.y) / 2
+          const geometry = getEdgePathGeometry(edge, index, edges, from, to, directed)
           const edgeLabel = edge.label ?? edge.weight
 
           return (
             <g key={`${edge.from}-${edge.to}-${index}`}>
-              <line
-                x1={start.x}
-                y1={start.y}
-                x2={end.x}
-                y2={end.y}
+              <path
+                d={geometry.path}
                 stroke={color}
                 strokeWidth={state === 'current' || state === 'selected' ? 3 : 2}
                 strokeDasharray={state === 'rejected' ? '5 5' : undefined}
                 strokeLinecap="round"
-                markerEnd={directed ? `url(#arrow-${state})` : undefined}
+                strokeLinejoin="round"
+                fill="none"
+                markerEnd={directed ? 'url(#arrow-context)' : undefined}
                 style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
                 filter={state === 'current' ? 'url(#glow)' : undefined}
               />
               {hasEdgeLabels && edgeLabel != null && (
                 <>
                   <circle
-                    cx={midX}
-                    cy={midY}
+                    cx={geometry.label.x}
+                    cy={geometry.label.y}
                     r={edge.weight != null && edge.weight < 0 ? 12 : 10}
                     fill="var(--graph-weight-bg, #000)"
                     stroke={color}
                     strokeWidth={1}
                   />
                   <text
-                    x={midX}
-                    y={midY}
+                    x={geometry.label.x}
+                    y={geometry.label.y}
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill={state === 'current' ? 'var(--graph-current-text, #000)' : 'var(--graph-weight-text, #aaa)'}
