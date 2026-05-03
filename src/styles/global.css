@@ -278,3 +278,14 @@ input[type='search']::-webkit-search-decoration {
     stroke-dashoffset: 0;
   }
 }
+
+/* Pulse animation for selected source node */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}

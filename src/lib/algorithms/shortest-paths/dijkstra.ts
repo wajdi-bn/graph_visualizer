@@ -25,6 +25,11 @@ export const dijkstra: Algorithm = {
   difficulty: 'intermediate',
   visualization: 'graph',
   code: `function dijkstra(graph, source) {
+  // source: the chosen starting vertex (required)
+  if (source === null || source === undefined) {
+    throw new Error('Source vertex required for Dijkstra');
+  }
+  
   const dist = Array(graph.length).fill(Infinity);
   const parent = Array(graph.length).fill(null);
   const visited = new Set();
@@ -32,9 +37,13 @@ export const dijkstra: Algorithm = {
 
   while (visited.size < graph.length) {
     const u = minUnvisitedVertex(dist, visited);
+    if (u === -1 || dist[u] === Infinity) break;
     visited.add(u);
 
     for (const edge of graph[u]) {
+      if (edge.weight < 0) {
+        throw new Error('Negative weights not allowed');
+      }
       const next = dist[u] + edge.weight;
       if (!visited.has(edge.to) && next < dist[edge.to]) {
         dist[edge.to] = next;
@@ -47,7 +56,17 @@ export const dijkstra: Algorithm = {
 }`,
   description: `Dijkstra
 
-Dijkstra finds shortest paths from one source in a weighted graph with non-negative edge weights.
+Dijkstra finds shortest paths from a chosen source vertex in a weighted graph with non-negative edge weights.
+
+**Requirements:**
+- Select a source vertex before running the algorithm (defaults to first node)
+- All edge weights must be non-negative
+- Graph must have at least one node
+- Works on directed and undirected graphs
+
+**How to use:**
+- Default: Uses the first node as source
+- Custom: Pass \`sourceNodeId\` in your graph input to select a specific source node
 
 Time Complexity: O((V + E) log V)
 Space Complexity: O(V)`,
@@ -59,6 +78,20 @@ Space Complexity: O(V)`,
     const { nodes, edges, directed } = demo
     const incompatible = requireNodes(locale, nodes, edges, directed)
     if (incompatible) return incompatible
+    
+    // Dijkstra requires: at least one node to start from
+    if (nodes.length === 0) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        directed,
+        'Dijkstra requires at least one node to use as a source vertex.',
+        'Dijkstra exige au moins un noeud pour utiliser comme sommet source.',
+      )
+    }
+    
+    // Dijkstra requires: non-negative edge weights
     const negativeEdge = edges.find((edge) => (edge.weight ?? 1) < 0)
     if (customGraph && negativeEdge) {
       return incompatibilityStep(
@@ -70,7 +103,37 @@ Space Complexity: O(V)`,
         'Dijkstra exige des poids non negatifs. Utilisez Bellman-Ford pour les graphes avec poids negatifs.',
       )
     }
-    const source = nodes[0].id
+    
+    // Dijkstra requires: all edges must have valid weights
+    const invalidWeightEdge = edges.find((edge) => {
+      const w = edge.weight ?? 1
+      return !Number.isFinite(w) || w < 0
+    })
+    if (customGraph && invalidWeightEdge) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        directed,
+        'All edge weights must be non-negative and finite numbers.',
+        'Tous les poids des aretes doivent etre des nombres non negatifs et finis.',
+      )
+    }
+    
+    // Set source: use provided sourceNodeId or default to first node
+    let source = customGraph?.sourceNodeId ?? nodes[0]?.id
+    
+    // Validate source node exists
+    if (source == null || !nodes.find(n => n.id === source)) {
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        directed,
+        'Invalid or missing source node. Please select a valid node as the source vertex.',
+        'Noeud source invalide ou manquant. Veuillez selectionner un noeud valide comme sommet source.',
+      )
+    }
     const sourceLabel = label(nodes, source)
     const adj = adjacency(edges, directed)
     const distances: Record<number, number | string> = {}
@@ -96,8 +159,8 @@ Space Complexity: O(V)`,
       }),
       description: d(
         locale,
-        `Start at ${sourceLabel}. Its distance is 0; every other vertex is unknown.`,
-        `On commence en ${sourceLabel}. Sa distance vaut 0; toutes les autres sont inconnues.`,
+        `✓ Source vertex selected: ${sourceLabel}. Its distance is 0 (Dijkstra requires a source). All other vertices are initially unreachable (Infinity). You can choose any node as the source before running the algorithm.`,
+        `✓ Sommet source selectionne : ${sourceLabel}. Sa distance vaut 0 (Dijkstra exige une source). Tous les autres sommets sont initialement inaccessibles (Infini). Vous pouvez choisir n'importe quel noeud comme source avant de lancer l'algorithme.`,
       ),
       codeLine: 5,
       variables: { source: sourceLabel, distances: formatDistances(nodes, distances) },

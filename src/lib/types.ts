@@ -85,6 +85,7 @@ export interface AlgorithmGraphInput {
   nodes: GraphNode[]
   edges: GraphEdge[]
   directed?: boolean
+  sourceNodeId?: number // Optional: for algorithms that require a source vertex (e.g., Dijkstra)
 }
 
 export interface Algorithm {

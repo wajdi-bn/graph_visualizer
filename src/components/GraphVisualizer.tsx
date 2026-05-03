@@ -21,6 +21,8 @@ const stateColors: Record<GraphVisualState, string> = {
 interface GraphVisualizerProps {
   step: Step
   locale?: Locale
+  selectedSourceNodeId?: number | null
+  onSourceNodeClick?: (nodeId: number) => void
 }
 
 function edgeKey(from: number, to: number, directed = false) {
@@ -164,7 +166,12 @@ function readableTextColor(fill: string | undefined) {
   return luminance > 0.58 ? '#0f172a' : '#ffffff'
 }
 
-export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizerProps) {
+export default function GraphVisualizer({
+  step,
+  locale = 'en',
+  selectedSourceNodeId,
+  onSourceNodeClick,
+}: GraphVisualizerProps) {
   const t = translations[locale]
   const { graph } = step
   if (!graph) return null
@@ -311,6 +318,8 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
               ? readableTextColor(customColor)
               : 'var(--graph-node-text, #fff)'
 
+          const isSourceSelected = selectedSourceNodeId === node.id
+          
           return (
             <g key={node.id}>
               {isCurrent && (
@@ -338,6 +347,21 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
                 </circle>
               )}
 
+              {isSourceSelected && (
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={NODE_RADIUS + 6}
+                  fill="none"
+                  stroke="var(--graph-selected, #34d399)"
+                  strokeWidth={3}
+                  opacity={0.8}
+                  style={{
+                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  }}
+                />
+              )}
+
               <circle
                 cx={node.x}
                 cy={node.y}
@@ -345,8 +369,12 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
                 fill={fill}
                 stroke={stroke}
                 strokeWidth={2}
-                style={{ transition: 'fill 0.3s ease, stroke 0.3s ease' }}
+                style={{
+                  transition: 'fill 0.3s ease, stroke 0.3s ease',
+                  cursor: onSourceNodeClick ? 'pointer' : 'default',
+                }}
                 filter={isCurrent ? 'url(#glow)' : undefined}
+                onClick={onSourceNodeClick ? () => onSourceNodeClick(node.id) : undefined}
               />
 
               <text
@@ -358,7 +386,10 @@ export default function GraphVisualizer({ step, locale = 'en' }: GraphVisualizer
                 fontSize="13"
                 fontWeight="700"
                 fontFamily="Inter, system-ui, sans-serif"
-                style={{ transition: 'fill 0.3s ease' }}
+                style={{
+                  transition: 'fill 0.3s ease',
+                  pointerEvents: 'none',
+                }}
               >
                 {node.label}
               </text>

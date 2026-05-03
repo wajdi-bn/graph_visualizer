@@ -1,9 +1,11 @@
-import type { Algorithm, Step } from '@lib/types'
+import type { Algorithm, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   adjacency,
   baseGraph,
+  cloneEdgeStates,
   cloneRecord,
+  edgeKey,
   graphFromInput,
   label,
   palette,
@@ -73,6 +75,8 @@ Space Complexity: O(V)`,
     const adj = adjacency(edges)
     const visited = new Set<number>()
     const visitedNodes: number[] = []
+    const visitedEdges: [number, number][] = []
+    const edgeStates: Record<string, GraphVisualState> = {}
     const nodeColors: Record<number, string> = {}
     const components: number[][] = []
     const steps: Step[] = []
@@ -91,6 +95,9 @@ Space Complexity: O(V)`,
           currentNode: node.id,
           stack: [...stack],
           nodeColors: cloneRecord(nodeColors),
+          visitedEdges: [...visitedEdges],
+          selectedEdges: [...visitedEdges],
+          edgeStates: cloneEdgeStates(edgeStates),
           phase: d(locale, `Start component ${componentIndex + 1}`, `Demarrer le composant ${componentIndex + 1}`),
         }),
         description: d(
@@ -112,6 +119,29 @@ Space Complexity: O(V)`,
             visited.add(neighbor)
             stack.push(neighbor)
             nodeColors[neighbor] = color
+            visitedEdges.push([current, neighbor])
+            edgeStates[edgeKey(current, neighbor)] = 'selected'
+
+            steps.push({
+              graph: baseGraph(nodes, edges, {
+                visitedNodes: [...visitedNodes],
+                currentNode: current,
+                currentEdge: [current, neighbor],
+                stack: [...stack],
+                nodeColors: cloneRecord(nodeColors),
+                visitedEdges: [...visitedEdges],
+                selectedEdges: [...visitedEdges],
+                edgeStates: cloneEdgeStates(edgeStates),
+                phase: d(locale, `Explore component ${componentIndex + 1}`, `Explorer le composant ${componentIndex + 1}`),
+              }),
+              description: d(
+                locale,
+                `Discover ${label(nodes, neighbor)} from ${label(nodes, current)} and add it to the component.`,
+                `Decouvrir ${label(nodes, neighbor)} depuis ${label(nodes, current)} et l'ajouter au composant.`,
+              ),
+              codeLine: 12,
+              variables: { neighbor: label(nodes, neighbor) },
+            })
           }
         }
 
@@ -121,6 +151,9 @@ Space Complexity: O(V)`,
             currentNode: current,
             stack: [...stack],
             nodeColors: cloneRecord(nodeColors),
+            visitedEdges: [...visitedEdges],
+            selectedEdges: [...visitedEdges],
+            edgeStates: cloneEdgeStates(edgeStates),
             phase: d(locale, `Explore component ${componentIndex + 1}`, `Explorer le composant ${componentIndex + 1}`),
           }),
           description: d(

@@ -103,6 +103,8 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     togglePlay,
     pause,
     currentStepData,
+    selectedSourceNodeId,
+    setSelectedSourceNodeId,
   } = usePlayback(locale, initialAlgorithm)
 
   const sidebar = useResizablePanel({
@@ -185,6 +187,15 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     setEditingGraphId(graphId)
     setGraphEditorOpen(true)
   }, [])
+
+  const handleSourceNodeClick = useCallback(
+    (nodeId: number) => {
+      if (!selectedAlgorithm || !selectedExampleId) return
+      setSelectedSourceNodeId(nodeId)
+      selectExample(selectedExampleId, nodeId)
+    },
+    [selectedAlgorithm, selectedExampleId, selectExample, setSelectedSourceNodeId],
+  )
 
   const runPropertyDemo = useCallback(
     (property: PropertyKey) => {
@@ -347,7 +358,14 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
             {propertyDemo.title} · {propertyDemo.verdict}
           </div>
         )}
-        {visualStep && <GraphVisualizer step={visualStep} locale={locale} />}
+        {visualStep && (
+          <GraphVisualizer
+            step={visualStep}
+            locale={locale}
+            selectedSourceNodeId={selectedSourceNodeId}
+            onSourceNodeClick={handleSourceNodeClick}
+          />
+        )}
       </div>
     )
   }

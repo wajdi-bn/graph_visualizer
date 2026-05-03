@@ -17,11 +17,27 @@ export const SPEED_MAP: Record<number, number> = {
 }
 
 export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null) {
+  const [selectedSourceNodeId, setSelectedSourceNodeId] = useState<number | null>(null)
+
   const getSteps = useCallback(
-    (algorithm: Algorithm, exampleId?: string | null): Step[] => {
+    (algorithm: Algorithm, exampleId?: string | null, sourceNodeId?: number | null): Step[] => {
       if (isSessionGraphExampleId(exampleId)) {
         const graph = getSessionGraph(getSessionGraphIdFromExampleId(exampleId))
-        return graph ? algorithm.generateSteps(locale, undefined, graphToState(graph)) : []
+        if (!graph) return []
+        const graphState = graphToState(graph)
+        // Add sourceNodeId if a custom source was selected
+        if (sourceNodeId != null) {
+          graphState.sourceNodeId = sourceNodeId
+        }
+        return algorithm.generateSteps(locale, undefined, graphState)
+      }
+      // For predefined examples, also pass sourceNodeId if available
+      if (sourceNodeId != null) {
+        return algorithm.generateSteps(locale, exampleId ?? undefined, { 
+          nodes: [], 
+          edges: [], 
+          sourceNodeId 
+        })
       }
       return algorithm.generateSteps(locale, exampleId ?? undefined)
     },
@@ -69,12 +85,18 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     autoplayTimerRef.current = setTimeout(() => setIsPlaying(true), 600)
   }, [clearAutoplayTimer, getSteps])
 
-  const selectExample = useCallback((exampleId: string) => {
+  const selectExample = useCallback((exampleId: string, sourceNodeId?: number | null) => {
     if (!selectedAlgorithm) return
     clearAutoplayTimer()
     setIsPlaying(false)
     setSelectedExampleId(exampleId)
-    setSteps(getSteps(selectedAlgorithm, exampleId))
+    // Update selected source node if provided
+    if (sourceNodeId != null) {
+      setSelectedSourceNodeId(sourceNodeId)
+    } else {
+      setSelectedSourceNodeId(null) // Reset when selecting new example
+    }
+    setSteps(getSteps(selectedAlgorithm, exampleId, sourceNodeId ?? null))
     setCurrentStep(0)
   }, [selectedAlgorithm, clearAutoplayTimer, getSteps])
 
@@ -164,5 +186,7 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     togglePlay,
     pause,
     currentStepData,
+    selectedSourceNodeId,
+    setSelectedSourceNodeId,
   }
 }
