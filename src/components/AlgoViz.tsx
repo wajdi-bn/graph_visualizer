@@ -27,6 +27,7 @@ import {
   getSessionGraph,
   readSessionGraphs,
   saveSessionGraph,
+  normalizeSessionGraph,
   SESSION_GRAPHS_CHANGED_EVENT,
   type SessionGraphDraft,
   type SessionGraph,
@@ -227,6 +228,29 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
       selectExample(makeSessionGraphExampleId(graph.id))
     },
     [openGraphEditor, selectExample],
+  )
+
+  const handleImportGraphs = useCallback(
+    async (files: File[]) => {
+      let lastImported: SessionGraph | null = null
+
+      for (const file of files) {
+        try {
+          const raw = await file.text()
+          const parsed = JSON.parse(raw) as Partial<SessionGraphDraft>
+          const imported = saveSessionGraph(normalizeSessionGraph(parsed), true)
+          lastImported = imported
+        } catch (error) {
+          console.error(`Error importing graph file ${file.name}:`, error)
+        }
+      }
+
+      setSessionGraphs(readSessionGraphs())
+      if (lastImported && selectedAlgorithm) {
+        selectExample(makeSessionGraphExampleId(lastImported.id))
+      }
+    },
+    [selectedAlgorithm, selectExample],
   )
 
   const handleSourceNodeClick = useCallback(
@@ -475,6 +499,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         sessionGraphs={sessionGraphs}
         onExampleChange={selectExample}
         onCreateGraph={openGraphEditor}
+        onImportGraphs={handleImportGraphs}
         onCreatePresetGraph={createPresetGraph}
         onCreateFundamentalGraph={createFundamentalGraph}
         onEditGraph={(graphId) => openGraphEditor(graphId)}

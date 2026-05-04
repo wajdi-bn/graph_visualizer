@@ -27,6 +27,7 @@ interface GraphExamplePickerProps {
   sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onImportGraphs: (files: File[]) => void
   onCreatePresetGraph: (draft: SessionGraphDraft) => void
   onCreateFundamentalGraph: (kind: FundamentalGraphKind, size: number) => void
   onEditGraph: (graphId: string) => void
@@ -39,16 +40,19 @@ export default function GraphExamplePicker({
   sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onImportGraphs,
   onCreatePresetGraph,
   onCreateFundamentalGraph,
   onEditGraph,
 }: GraphExamplePickerProps) {
   const [open, setOpen] = useState(false)
   const [fundamentalSize, setFundamentalSize] = useState(3)
+  const bulkImportRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const previousAlgorithmIdRef = useRef(selectedAlgorithm.id)
   const buttonLabel = locale === 'fr' ? 'Liste des graphes' : 'Graph list'
   const createLabel = locale === 'fr' ? 'Creer un graphe' : 'Create graph'
+  const importLabel = locale === 'fr' ? 'Ajouter des graphes' : 'Add graphs'
   const fundamentalLabel = locale === 'fr' ? 'Graphes fondamentaux' : 'Fundamental graphs'
   const selectedSessionGraphId = getSessionGraphIdFromExampleId(selectedExampleId)
   const presetSections = getAlgorithmPresetSections(selectedAlgorithm.id)
@@ -120,15 +124,56 @@ export default function GraphExamplePicker({
           role="menu"
           aria-label={buttonLabel}
         >
-          <div className="border-b border-white/8 px-3 py-2">
+          <div className="flex items-center justify-between gap-2 border-b border-white/8 px-3 py-2">
             <div className="text-xs font-semibold text-white font-heading">{buttonLabel}</div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onCreateGraph()
+                  setOpen(false)
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-neutral-300 transition-colors hover:border-white/24 hover:bg-white/10 hover:text-white"
+                aria-label={createLabel}
+                title={createLabel}
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => bulkImportRef.current?.click()}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-neutral-300 transition-colors hover:border-white/24 hover:bg-white/10 hover:text-white"
+                aria-label={importLabel}
+                title={importLabel}
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0 4 4m-4-4-4 4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 20h14" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div className="max-h-[min(70vh,560px)] overflow-y-auto p-3">
+            <input
+              ref={bulkImportRef}
+              type="file"
+              accept="application/json,.json"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? [])
+                if (files.length > 0) onImportGraphs(files)
+                event.currentTarget.value = ''
+              }}
+            />
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
               {presetSections.length > 0 && (
                 <div className="col-span-2 md:col-span-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500">
-                  {locale === 'fr' ? 'Graphes de test de l algorithme' : 'Algorithm test graphs'}
+                    {locale === 'fr' ? 'Graphes predefinis' : 'Preset graphs'}
                 </div>
               )}
 
@@ -276,26 +321,6 @@ export default function GraphExamplePicker({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  onCreateGraph()
-                  setOpen(false)
-                }}
-                className="min-h-[132px] rounded-lg border border-dashed border-white/16 bg-white/[0.03] p-2.5 text-left transition-colors hover:border-white/28 hover:bg-white/8 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
-                role="menuitem"
-                aria-label={createLabel}
-              >
-                <div className="mb-2 flex h-[62px] items-center justify-center rounded-md border border-white/8 bg-black/40">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/14 text-xl text-neutral-300">
-                    +
-                  </span>
-                </div>
-                <div className="text-xs font-semibold text-white">{createLabel}</div>
-                <div className="mt-1 text-[10px] leading-4 text-neutral-500">
-                  {locale === 'fr' ? 'Demarrer avec un graphe vide' : 'Start with a blank graph'}
-                </div>
-              </button>
             </div>
           </div>
         </div>

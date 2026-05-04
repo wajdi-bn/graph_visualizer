@@ -32,6 +32,7 @@ interface HeaderProps {
   sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onImportGraphs: (files: File[]) => void
   onCreatePresetGraph: (draft: SessionGraphDraft) => void
   onCreateFundamentalGraph: (kind: FundamentalGraphKind, size: number) => void
   onEditGraph: (graphId: string) => void
@@ -72,6 +73,7 @@ export default function Header({
   sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onImportGraphs,
   onCreatePresetGraph,
   onCreateFundamentalGraph,
   onEditGraph,
@@ -173,6 +175,7 @@ export default function Header({
             sessionGraphs={sessionGraphs}
             onExampleChange={onExampleChange}
             onCreateGraph={onCreateGraph}
+            onImportGraphs={onImportGraphs}
             onCreatePresetGraph={onCreatePresetGraph}
             onCreateFundamentalGraph={onCreateFundamentalGraph}
             onEditGraph={onEditGraph}
