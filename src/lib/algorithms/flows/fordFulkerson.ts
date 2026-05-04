@@ -20,13 +20,17 @@ import {
   getFlowDemo,
 } from '@lib/algorithms/graphAlgorithmExamples'
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
 interface ResidualEdge {
-  edgeIndex: number
+  edgeIndex: number   // index into the original edges array
   from: number
   to: number
   residual: number
   direction: 'forward' | 'backward'
 }
+
+// ── Algorithm ────────────────────────────────────────────────────────────────
 
 export const fordFulkerson: Algorithm = {
   id: 'ford-fulkerson',
@@ -56,21 +60,25 @@ export const fordFulkerson: Algorithm = {
 }`,
   description: `Ford-Fulkerson
 
-Ford-Fulkerson here uses Edmonds-Karp: each augmenting path is chosen by BFS in the residual network.
+Ford-Fulkerson here uses Edmonds-Karp: each augmenting path is chosen by BFS in the residual network. Parallel edges between the same pair of nodes are fully supported.
 
-Time Complexity: O(VE^2)
+Time Complexity: O(VE²)
 Space Complexity: O(V + E)`,
   examples: flowExampleOptions,
+
   generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
+    // ── Input resolution ─────────────────────────────────────────────────────
     const demo = customGraph
       ? graphFromInput(customGraph)
       : { ...getFlowDemo(exampleId), directed: true }
+
     const { nodes } = demo
     const inputEdges = demo.edges
     const inputDirected = Boolean(demo.directed)
+
     const incompatible = requireNodes(locale, nodes, inputEdges, inputDirected)
     if (incompatible) return incompatible
-    // Keep the original edge direction while reporting incompatibility, then normalize for residual flow.
+
     const directedIssue = requireDirectedCustom(
       locale,
       customGraph,
@@ -80,7 +88,9 @@ Space Complexity: O(V + E)`,
       'Ford-Fulkerson utilise des reseaux de capacite orientes. Activez Graphe oriente dans l editeur.',
     )
     if (directedIssue) return directedIssue
+
     const edges = inputEdges.map((edge) => ({ ...edge, directed: true }))
+
     if (nodes.length < 2) {
       return incompatibilityStep(
         locale,
@@ -91,8 +101,10 @@ Space Complexity: O(V + E)`,
         'Ford-Fulkerson exige au moins une source et un puits.',
       )
     }
+
     const weightedIssue = requireWeightedGraph(locale, nodes, edges, true)
     if (weightedIssue) return weightedIssue
+
     const negativeCapacity = edges.find((edge) => (edge.weight ?? 1) < 0)
     if (negativeCapacity) {
       return incompatibilityStep(
@@ -108,27 +120,30 @@ Space Complexity: O(V + E)`,
     const source = resolveSourceNodeId(nodes, customGraph, options)
     const sourceIssue = requireValidSource(locale, nodes, edges, true, source)
     if (sourceIssue) return sourceIssue
+
     const sink = resolveSinkNodeId(nodes, source, customGraph, options)
     const sinkIssue = requireValidSink(locale, nodes, edges, true, sink)
     if (sinkIssue) return sinkIssue
+
     if (source == null || sink == null) return []
+
     const sourceLabel = label(nodes, source)
     const sinkLabel = label(nodes, sink)
+
+    // ── Flow state — one entry per original edge index ───────────────────────
     const flow = new Array(edges.length).fill(0) as number[]
     const steps: Step[] = []
     let maxFlow = 0
     let iteration = 1
 
+    // ── Step 0: initialisation ───────────────────────────────────────────────
     steps.push({
       graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
         directed: true,
         sourceNodeId: source,
         sinkNodeId: sink,
         currentNode: source,
-        nodeColors: {
-          [source]: '#38bdf8',
-          [sink]: '#fb7185',
-        },
+        nodeColors: { [source]: '#38bdf8', [sink]: '#fb7185' },
         phase: d(locale, 'Initialize zero flow', 'Initialiser le flot nul'),
       }),
       description: d(
@@ -140,8 +155,17 @@ Space Complexity: O(V + E)`,
       variables: { source: sourceLabel, sink: sinkLabel, maxFlow },
     })
 
+    // ── Main loop ────────────────────────────────────────────────────────────
     while (true) {
-      const search = findAugmentingPath(nodes.map((node) => node.id), edges, flow, source, sink)
+      const search = findAugmentingPath(
+        nodes.map((node) => node.id),
+        edges,
+        flow,
+        source,
+        sink,
+      )
+
+      // No augmenting path → algorithm terminates
       if (!search.path) {
         steps.push({
           graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
@@ -150,10 +174,7 @@ Space Complexity: O(V + E)`,
             sourceNodeId: source,
             sinkNodeId: sink,
             currentNode: null,
-            nodeColors: {
-              [source]: '#38bdf8',
-              [sink]: '#fb7185',
-            },
+            nodeColors: { [source]: '#38bdf8', [sink]: '#fb7185' },
             phase: d(locale, 'No augmenting path', 'Aucun chemin augmentant'),
           }),
           description: d(
@@ -168,24 +189,24 @@ Space Complexity: O(V + E)`,
       }
 
       const path = search.path
-      const bottleneck = Math.min(...path.map((edge) => edge.residual))
-      const pathNodes = [source, ...path.map((edge) => edge.to)]
-      const pathEdges = path.map((edge) => originalPair(edges[edge.edgeIndex]))
+      const bottleneck = Math.min(...path.map((re) => re.residual))
+      const pathNodes = [source, ...path.map((re) => re.to)]
+
+      // Build edge pairs for the visualiser using the original edge direction
+      const pathEdgePairs = path.map((re) => originalPair(edges[re.edgeIndex]))
       const edgeStates = edgeStatesForPath(edges, path)
 
+      // Show the found augmenting path
       steps.push({
         graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
           directed: true,
           visitedNodes: pathNodes,
           sourceNodeId: source,
           sinkNodeId: sink,
-          visitedEdges: pathEdges,
-          selectedEdges: pathEdges,
+          visitedEdges: pathEdgePairs,
+          selectedEdges: pathEdgePairs,
           edgeStates,
-          nodeColors: {
-            [source]: '#38bdf8',
-            [sink]: '#fb7185',
-          },
+          nodeColors: { [source]: '#38bdf8', [sink]: '#fb7185' },
           phase: d(locale, `Augmenting path ${iteration}`, `Chemin augmentant ${iteration}`),
         }),
         description: d(
@@ -194,17 +215,18 @@ Space Complexity: O(V + E)`,
           `Chemin residuel trouve ${formatPath(nodes, pathNodes)} avec goulot ${bottleneck}.`,
         ),
         codeLine: 8,
-        variables: {
-          path: formatPath(nodes, pathNodes),
-          bottleneck,
-          maxFlow,
-        },
+        variables: { path: formatPath(nodes, pathNodes), bottleneck, maxFlow },
       })
 
+      // Push flow along the path edge by edge
       for (const residualEdge of path) {
         const original = edges[residualEdge.edgeIndex]
-        if (residualEdge.direction === 'forward') flow[residualEdge.edgeIndex] += bottleneck
-        else flow[residualEdge.edgeIndex] -= bottleneck
+
+        if (residualEdge.direction === 'forward') {
+          flow[residualEdge.edgeIndex] += bottleneck
+        } else {
+          flow[residualEdge.edgeIndex] -= bottleneck
+        }
 
         const stateKey = edgeKey(original.from, original.to, true)
         steps.push({
@@ -214,32 +236,31 @@ Space Complexity: O(V + E)`,
             sourceNodeId: source,
             sinkNodeId: sink,
             currentEdge: originalPair(original),
-            visitedEdges: pathEdges,
-            selectedEdges: pathEdges,
+            visitedEdges: pathEdgePairs,
+            selectedEdges: pathEdgePairs,
             edgeStates: {
               ...cloneEdgeStates(edgeStates),
               [stateKey]: 'current',
             },
-            nodeColors: {
-              [source]: '#38bdf8',
-              [sink]: '#fb7185',
-            },
+            nodeColors: { [source]: '#38bdf8', [sink]: '#fb7185' },
             phase: d(locale, 'Push bottleneck flow', 'Pousser le goulot'),
           }),
-          description: residualEdge.direction === 'forward'
-            ? d(
-                locale,
-                `Add ${bottleneck} units on ${label(nodes, original.from)} -> ${label(nodes, original.to)}.`,
-                `Ajouter ${bottleneck} unites sur ${label(nodes, original.from)} -> ${label(nodes, original.to)}.`,
-              )
-            : d(
-                locale,
-                `Cancel ${bottleneck} units on ${label(nodes, original.from)} -> ${label(nodes, original.to)} through a reverse residual edge.`,
-                `Annuler ${bottleneck} unites sur ${label(nodes, original.from)} -> ${label(nodes, original.to)} via une arete residuelle inverse.`,
-              ),
+          description:
+            residualEdge.direction === 'forward'
+              ? d(
+                  locale,
+                  `Add ${bottleneck} units on ${label(nodes, original.from)} -> ${label(nodes, original.to)}.`,
+                  `Ajouter ${bottleneck} unites sur ${label(nodes, original.from)} -> ${label(nodes, original.to)}.`,
+                )
+              : d(
+                  locale,
+                  `Cancel ${bottleneck} units on ${label(nodes, original.from)} -> ${label(nodes, original.to)} through a reverse residual edge.`,
+                  `Annuler ${bottleneck} unites sur ${label(nodes, original.from)} -> ${label(nodes, original.to)} via une arete residuelle inverse.`,
+                ),
           codeLine: 11,
           variables: {
             edge: `${label(nodes, original.from)}->${label(nodes, original.to)}`,
+            direction: residualEdge.direction,
             bottleneck,
             flow: `${flow[residualEdge.edgeIndex]}/${original.weight ?? 1}`,
           },
@@ -247,19 +268,17 @@ Space Complexity: O(V + E)`,
       }
 
       maxFlow += bottleneck
+
       steps.push({
         graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
           directed: true,
           visitedNodes: pathNodes,
           sourceNodeId: source,
           sinkNodeId: sink,
-          visitedEdges: pathEdges,
-          selectedEdges: pathEdges,
+          visitedEdges: pathEdgePairs,
+          selectedEdges: pathEdgePairs,
           edgeStates,
-          nodeColors: {
-            [source]: '#38bdf8',
-            [sink]: '#fb7185',
-          },
+          nodeColors: { [source]: '#38bdf8', [sink]: '#fb7185' },
           phase: d(locale, 'Increase max flow', 'Augmenter le flot'),
         }),
         description: d(
@@ -278,6 +297,8 @@ Space Complexity: O(V + E)`,
   },
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function edgesWithFlowLabels(edges: GraphEdge[], flow: number[]) {
   return edges.map((edge, index) => ({
     ...edge,
@@ -285,59 +306,79 @@ function edgesWithFlowLabels(edges: GraphEdge[], flow: number[]) {
   }))
 }
 
+/**
+ * BFS on the residual graph.
+ *
+ * FIX: parent is now a Map<nodeId, ResidualEdge> keyed by destination node.
+ * For each node we store exactly ONE incoming residual edge (the first BFS
+ * encounter), which is sufficient to reconstruct the shortest augmenting path.
+ * This correctly handles parallel edges: multiple forward/backward residual
+ * edges between the same pair of nodes are all evaluated independently because
+ * each has its own edgeIndex.
+ */
 function findAugmentingPath(
   nodeIds: number[],
   edges: GraphEdge[],
   flow: number[],
   source: number,
   sink: number,
-) {
-  const queue = [source]
+): { path: ResidualEdge[] | null; visited: number[] } {
+  const queue: number[] = [source]
   const visited = new Set<number>([source])
-  const parent: Record<number, ResidualEdge | null> = {}
-  for (const id of nodeIds) parent[id] = null
+
+  // Map from nodeId → the residual edge that first reached it
+  const parent = new Map<number, ResidualEdge>()
 
   while (queue.length > 0) {
     const current = queue.shift()!
     if (current === sink) break
 
-    for (let index = 0; index < edges.length; index += 1) {
+    for (let index = 0; index < edges.length; index++) {
       const edge = edges[index]
       const capacity = edge.weight ?? 1
 
-      // Forward residual capacity adds flow; backward residual capacity can cancel previous flow.
-      if (edge.from === current && capacity - flow[index] > 0 && !visited.has(edge.to)) {
-        visited.add(edge.to)
-        parent[edge.to] = {
-          edgeIndex: index,
-          from: edge.from,
-          to: edge.to,
-          residual: capacity - flow[index],
-          direction: 'forward',
+      // Forward residual edge: u → v with remaining capacity
+      if (edge.from === current && !visited.has(edge.to)) {
+        const remaining = capacity - flow[index]
+        if (remaining > 0) {
+          visited.add(edge.to)
+          parent.set(edge.to, {
+            edgeIndex: index,
+            from: edge.from,
+            to: edge.to,
+            residual: remaining,
+            direction: 'forward',
+          })
+          queue.push(edge.to)
         }
-        queue.push(edge.to)
       }
 
-      if (edge.to === current && flow[index] > 0 && !visited.has(edge.from)) {
-        visited.add(edge.from)
-        parent[edge.from] = {
-          edgeIndex: index,
-          from: edge.to,
-          to: edge.from,
-          residual: flow[index],
-          direction: 'backward',
+      // Backward residual edge: v → u to cancel existing forward flow
+      if (edge.to === current && !visited.has(edge.from)) {
+        const cancelable = flow[index]
+        if (cancelable > 0) {
+          visited.add(edge.from)
+          parent.set(edge.from, {
+            edgeIndex: index,
+            from: edge.to,   // traversal direction is reversed
+            to: edge.from,
+            residual: cancelable,
+            direction: 'backward',
+          })
+          queue.push(edge.from)
         }
-        queue.push(edge.from)
       }
     }
   }
 
   if (!visited.has(sink)) return { path: null, visited: [...visited] }
 
+  // Reconstruct path from sink back to source
   const path: ResidualEdge[] = []
   let current = sink
+
   while (current !== source) {
-    const edge = parent[current]
+    const edge = parent.get(current)
     if (!edge) return { path: null, visited: [...visited] }
     path.push(edge)
     current = edge.from
@@ -350,15 +391,19 @@ function originalPair(edge: GraphEdge): [number, number] {
   return [edge.from, edge.to]
 }
 
-function edgeStatesForPath(edges: GraphEdge[], path: ResidualEdge[]) {
+function edgeStatesForPath(
+  edges: GraphEdge[],
+  path: ResidualEdge[],
+): Record<string, GraphVisualState> {
   const states: Record<string, GraphVisualState> = {}
   for (const residualEdge of path) {
     const original = edges[residualEdge.edgeIndex]
-    states[edgeKey(original.from, original.to, true)] = residualEdge.direction === 'forward' ? 'selected' : 'candidate'
+    states[edgeKey(original.from, original.to, true)] =
+      residualEdge.direction === 'forward' ? 'selected' : 'candidate'
   }
   return states
 }
 
-function formatPath(nodes: { id: number; label: string }[], path: number[]) {
+function formatPath(nodes: { id: number; label: string }[], path: number[]): string {
   return path.map((id) => label(nodes, id)).join(' -> ')
 }
