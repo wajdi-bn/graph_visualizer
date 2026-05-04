@@ -69,6 +69,7 @@ Space Complexity: O(V)`,
       { from: 4, to: 5, directed: true },
       { from: 5, to: 3, directed: true },
     ]
+
     if (customGraph) {
       const custom = graphFromInput(customGraph, { directed: isDirectedGraph(customGraph) })
       const incompatible =
@@ -85,6 +86,7 @@ Space Complexity: O(V)`,
       nodes = custom.nodes
       edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
     }
+
     const reversedEdges = edges.map((edge) => ({ from: edge.to, to: edge.from, directed: true }))
     const adj = adjacency(edges, true)
     const revAdj = adjacency(reversedEdges, true)
@@ -93,16 +95,17 @@ Space Complexity: O(V)`,
     const nodeColors: Record<number, string> = {}
     const steps: Step[] = []
 
-    // First pass records vertices by finish time; the second pass consumes that order on reversed edges.
+    // ── First pass: recursive DFS to compute finish-time order ──────────────
     const dfs1 = (node: number) => {
       visited.add(node)
+
       steps.push({
         graph: baseGraph(nodes, edges, {
           directed: true,
           visitedNodes: [...visited],
           currentNode: node,
           order: [...order],
-          phase: d(locale, 'First DFS: finishing order', 'Premier DFS : ordre de fin'),
+          phase: d(locale, 'First DFS: visit', 'Premier DFS : visite'),
         }),
         description: d(
           locale,
@@ -110,7 +113,10 @@ Space Complexity: O(V)`,
           `Le premier passage visite ${label(nodes, node)}.`,
         ),
         codeLine: 6,
-        variables: { vertex: label(nodes, node), order: order.map((id) => label(nodes, id)).join(', ') },
+        variables: {
+          vertex: label(nodes, node),
+          order: order.map((id) => label(nodes, id)).join(', '),
+        },
       })
 
       for (const { node: neighbor } of adj[node] ?? []) {
@@ -118,21 +124,25 @@ Space Complexity: O(V)`,
       }
 
       order.push(node)
+
       steps.push({
         graph: baseGraph(nodes, edges, {
           directed: true,
           visitedNodes: [...visited],
           currentNode: node,
           order: [...order],
-          phase: d(locale, 'Push after DFS finish', 'Empiler apres la fin du DFS'),
+          phase: d(locale, 'First DFS: push to stack', 'Premier DFS : empiler'),
         }),
         description: d(
           locale,
-          `${label(nodes, node)} is finished; push it to the order stack.`,
-          `${label(nodes, node)} est termine; on l'empile dans l ordre.`,
+          `${label(nodes, node)} finished; pushed onto the order stack.`,
+          `${label(nodes, node)} est termine ; empile dans l'ordre.`,
         ),
         codeLine: 6,
-        variables: { pushed: label(nodes, node), order: order.map((id) => label(nodes, id)).join(', ') },
+        variables: {
+          pushed: label(nodes, node),
+          order: order.map((id) => label(nodes, id)).join(', '),
+        },
       })
     }
 
@@ -140,53 +150,92 @@ Space Complexity: O(V)`,
       if (!visited.has(node.id)) dfs1(node.id)
     }
 
+    // ── Second pass: iterative DFS on reversed graph, post-order correct ────
     visited.clear()
-    const secondOrder = [...order].reverse()
     const components: number[][] = []
 
-    for (const start of secondOrder) {
+    // Process vertices in reverse finish-time order (highest finish time first)
+    for (let i = order.length - 1; i >= 0; i--) {
+      const start = order[i]
       if (visited.has(start)) continue
+
       const color = palette[components.length % palette.length]
-      const stack = [start]
       const component: number[] = []
-      visited.add(start)
-      nodeColors[start] = color
+
+      // Use an explicit stack that tracks whether a node has been "expanded"
+      // so we can correctly simulate recursive DFS post-order on an iterative stack.
+      // Each entry is [nodeId, expanded].
+      const stack: [number, boolean][] = [[start, false]]
 
       while (stack.length > 0) {
-        const current = stack.pop()!
-        component.push(current)
-        for (const { node: neighbor } of revAdj[current] ?? []) {
-          if (!visited.has(neighbor)) {
-            visited.add(neighbor)
-            stack.push(neighbor)
-            nodeColors[neighbor] = color
-          }
-        }
+        const [current, expanded] = stack[stack.length - 1]
 
-        steps.push({
-          graph: baseGraph(nodes, reversedEdges, {
-            directed: true,
-            visitedNodes: [...visited],
-            currentNode: current,
-            nodeColors: cloneRecord(nodeColors),
-            stack: [...stack],
-            order: [...secondOrder],
-            phase: d(locale, 'Second DFS on reversed graph', 'Second DFS sur le graphe inverse'),
-          }),
-          description: d(
-            locale,
-            `On the reversed graph, ${label(nodes, current)} joins SCC ${components.length + 1}.`,
-            `Sur le graphe inverse, ${label(nodes, current)} rejoint la CFC ${components.length + 1}.`,
-          ),
-          codeLine: 16,
-          variables: { component: component.map((id) => label(nodes, id)).join(', ') },
-        })
+        if (!expanded) {
+          // First time we see this node: mark visited and emit a "visit" step
+          stack[stack.length - 1] = [current, true]
+
+          if (!visited.has(current)) {
+            visited.add(current)
+            nodeColors[current] = color
+            component.push(current)
+
+            steps.push({
+              graph: baseGraph(nodes, reversedEdges, {
+                directed: true,
+                visitedNodes: [...visited],
+                currentNode: current,
+                nodeColors: cloneRecord(nodeColors),
+                stack: stack.map(([id]) => id),
+                order: [...order],
+                phase: d(locale, 'Second DFS on reversed graph', 'Second DFS sur le graphe inverse'),
+              }),
+              description: d(
+                locale,
+                `On the reversed graph, ${label(nodes, current)} joins SCC ${components.length + 1}.`,
+                `Sur le graphe inverse, ${label(nodes, current)} rejoint la CFC ${components.length + 1}.`,
+              ),
+              codeLine: 16,
+              variables: {
+                component: component.map((id) => label(nodes, id)).join(', '),
+              },
+            })
+
+            // Push unvisited neighbours so they are expanded next
+            for (const { node: neighbor } of revAdj[current] ?? []) {
+              if (!visited.has(neighbor)) {
+                stack.push([neighbor, false])
+              }
+            }
+          }
+        } else {
+          // Node fully explored — pop it
+          stack.pop()
+        }
       }
+
       components.push(component)
     }
+
+    // ── Final summary step ───────────────────────────────────────────────────
+    steps.push({
+      graph: baseGraph(nodes, edges, {
+        directed: true,
+        visitedNodes: nodes.map((n) => n.id),
+        nodeColors: cloneRecord(nodeColors),
+        phase: d(locale, 'SCCs found', 'CFC trouvees'),
+      }),
+      description: d(
+        locale,
+        `Kosaraju found ${components.length} strongly connected component${components.length !== 1 ? 's' : ''}.`,
+        `Kosaraju a trouve ${components.length} composante${components.length !== 1 ? 's' : ''} fortement connexe${components.length !== 1 ? 's' : ''}.`,
+      ),
+      codeLine: 20,
+      variables: {
+        components: components.length,
+        sizes: components.map((c) => c.map((id) => label(nodes, id)).join('+')).join(', '),
+      },
+    })
 
     return steps
   },
 }
-
-
