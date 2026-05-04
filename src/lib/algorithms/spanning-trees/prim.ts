@@ -34,33 +34,40 @@ export const prim: Algorithm = {
   category: 'Spanning Trees',
   difficulty: 'intermediate',
   visualization: 'graph',
-  code: `function prim(vertices, edges) {
-  const adj = buildAdjacency(edges);
-  const pq = new MinHeap();
+  code: `function prim(nodes, adj, start = 0) {
   const inTree = new Set();
-  const key = new Map(vertices.map(v => [v, Infinity]));
-  const parent = new Map(vertices.map(v => [v, null]));
+  const key = {};
+  const parent = {};
+  const heap = new MinHeap(); // { node, key }
 
-  for (const start of vertices) {
-    if (inTree.has(start)) continue;
-    key.set(start, 0);
-    pq.push({ node: start, key: 0 });
+  // Initialization
+  for (const node of nodes) {
+    key[node] = Infinity;
+    parent[node] = null;
+  }
 
-    while (!pq.isEmpty()) {
-      const { node, key: w } = pq.pop();
-      if (inTree.has(node)) continue;
-      inTree.add(node);
-      for (const edge of adj[node]) {
-        if (!inTree.has(edge.to) && edge.weight < key.get(edge.to)) {
-          key.set(edge.to, edge.weight);
-          parent.set(edge.to, node);
-          pq.push({ node: edge.to, key: edge.weight });
-        }
+  key[start] = 0;
+  heap.push({ node: start, key: 0 });
+
+  while (!heap.isEmpty()) {
+    const { node: u } = heap.pop();
+    if (inTree.has(u)) continue;
+    inTree.add(u);
+
+    for (const edge of adj[u]) {
+      const v = edge.to;
+      const weight = edge.weight;
+
+      // Only consider vertices outside the tree
+      if (!inTree.has(v) && weight < key[v]) {
+        key[v] = weight;
+        parent[v] = u;
+        heap.push({ node: v, key: weight });
       }
     }
   }
 
-  return parent;
+  return parent; // or build MST edges from it
 }`,
   description: `Prim
 
@@ -114,7 +121,6 @@ Space Complexity: O(V)`,
     const parentEdge: Record<number, GraphEdge | null> = {}
     const selectedEdges: [number, number][] = []
     const selectedEdgeObjects: GraphEdge[] = []
-    const rejectedEdges: [number, number][] = []
     const edgeStates: Record<string, GraphVisualState> = {}
     const steps: Step[] = []
     const heap = new MinHeap<{ node: number; key: number }>()
@@ -123,6 +129,7 @@ Space Complexity: O(V)`,
     const nodeColors: Record<number, string> = {}
     let activeComponentColor: string | null = null
     const treeEdgesLabel = d(locale, 'Tree edges', 'Aretes de l arbre')
+    const treeEdgeColor = 'var(--graph-selected, #34d399)'
 
     for (const node of nodes) {
       key[node.id] = inf
@@ -163,6 +170,7 @@ Space Complexity: O(V)`,
           currentNode: startId,
           nodeColors: cloneRecord(nodeColors),
           selectedEdges: [...selectedEdges],
+          edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
           labels: { treeEdges: treeEdgesLabel },
           phase,
         }),
@@ -213,6 +221,7 @@ Space Complexity: O(V)`,
             currentEdge: parent[current] == null ? null : [parent[current]!, current],
             edgeStates: cloneEdgeStates(edgeStates),
             nodeColors: cloneRecord(nodeColors),
+            edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
             labels: { treeEdges: treeEdgesLabel },
             phase: d(locale, 'Extract min from heap', 'Extraire le minimum du tas'),
           }),
@@ -233,41 +242,12 @@ Space Complexity: O(V)`,
         })
 
         for (const { node: neighbor, weight, edge } of adj[current] ?? []) {
-          if (inTree.has(neighbor)) {
-            if (!hasUndirectedPair(rejectedEdges, current, neighbor)) {
-              rejectedEdges.push([current, neighbor])
-            }
-            edgeStates[edgeKey(current, neighbor)] = 'rejected'
-
-            steps.push({
-              graph: baseGraph(nodes, edges, {
-                visitedNodes: [...inTree],
-                currentNode: current,
-                currentEdge: [current, neighbor],
-                visitedEdges: [...selectedEdges],
-                selectedEdges: [...selectedEdges],
-                rejectedEdges: [...rejectedEdges],
-                edgeStates: cloneEdgeStates(edgeStates),
-                nodeColors: cloneRecord(nodeColors),
-                labels: { treeEdges: treeEdgesLabel },
-                phase: d(locale, 'Reject cycle edge', 'Rejeter une arete de cycle'),
-              }),
-              description: d(
-                locale,
-                `Reject ${label(nodes, current)}-${label(nodes, neighbor)} because ${label(nodes, neighbor)} is already in the tree.`,
-                `Rejeter ${label(nodes, current)}-${label(nodes, neighbor)} car ${label(nodes, neighbor)} est deja dans l arbre.`,
-              ),
-              codeLine: 18,
-              variables: { edge: `${label(nodes, current)}-${label(nodes, neighbor)}` },
-            })
-            continue
-          }
+          if (inTree.has(neighbor)) continue
           if (weight < keyNum[neighbor]) {
             keyNum[neighbor] = weight
             key[neighbor] = weight
             parent[neighbor] = current
             parentEdge[neighbor] = edge
-            edgeStates[edgeKey(current, neighbor)] = 'relaxed'
             heap.push({ node: neighbor, key: weight })
 
             steps.push({
@@ -279,6 +259,7 @@ Space Complexity: O(V)`,
                 selectedEdges: [...selectedEdges],
                 edgeStates: cloneEdgeStates(edgeStates),
                 nodeColors: cloneRecord(nodeColors),
+                edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
                 labels: { treeEdges: treeEdgesLabel },
                 phase: d(locale, 'Update frontier keys', 'Mettre a jour les cles de frontiere'),
               }),
@@ -289,32 +270,6 @@ Space Complexity: O(V)`,
               ),
               codeLine: 18,
               variables: { vertex: label(nodes, neighbor), key: weight, keys: formatDistances(nodes, key) },
-            })
-          } else {
-            // Edge does not improve the key - mark as rejected and show it
-            rejectedEdges.push([current, neighbor])
-            edgeStates[edgeKey(current, neighbor)] = 'rejected'
-
-            steps.push({
-              graph: baseGraph(nodes, edges, {
-                visitedNodes: [...inTree],
-                currentNode: current,
-                currentEdge: [current, neighbor],
-                visitedEdges: [...selectedEdges],
-                selectedEdges: [...selectedEdges],
-                rejectedEdges: [...rejectedEdges],
-                edgeStates: cloneEdgeStates(edgeStates),
-                nodeColors: cloneRecord(nodeColors),
-                labels: { treeEdges: treeEdgesLabel },
-                phase: d(locale, 'Examine edge', 'Examiner l arete'),
-              }),
-              description: d(
-                locale,
-                `Skip ${label(nodes, current)}-${label(nodes, neighbor)}: ${label(nodes, neighbor)} already has a better connection (key ${keyNum[neighbor]} < ${weight}).`,
-                `Ignorer ${label(nodes, current)}-${label(nodes, neighbor)} : ${label(nodes, neighbor)} a deja une meilleure connexion (cle ${keyNum[neighbor]} < ${weight}).`,
-              ),
-              codeLine: 18,
-              variables: { vertex: label(nodes, neighbor), currentKey: keyNum[neighbor], edgeWeight: weight },
             })
           }
         }
@@ -336,10 +291,9 @@ Space Complexity: O(V)`,
       graph: baseGraph(nodes, edges, {
         visitedEdges: [...selectedEdges],
         selectedEdges: [...selectedEdges],
-        rejectedEdges: [...rejectedEdges],
         edgeStates: cloneEdgeStates(edgeStates),
         nodeColors: forestColors.nodeColors,
-        edgeColors: forestColors.edgeColors,
+        edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
         labels: { treeEdges: treeEdgesLabel },
         phase: d(locale, 'MST summary', 'Resume de l ACM'),
       }),
@@ -384,8 +338,12 @@ Space Complexity: O(V)`,
   },
 }
 
-function hasUndirectedPair(pairs: [number, number][], from: number, to: number) {
-  return pairs.some(([a, b]) => (a === from && b === to) || (a === to && b === from))
+function buildTreeEdgeColors(pairs: [number, number][], color: string) {
+  const edgeColors: Record<string, string> = {}
+  for (const [from, to] of pairs) {
+    edgeColors[edgeKey(from, to, false)] = color
+  }
+  return edgeColors
 }
 
 
