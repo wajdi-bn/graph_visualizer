@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
 import type { Locale } from '@i18n/translations'
 import { translations } from '@i18n/translations'
@@ -124,6 +124,23 @@ function hexToRgb(color: string) {
 function getEdgeCurve(edge: GraphEdge, index: number, edges: GraphEdge[]) {
   if (Number.isFinite(edge.curve)) return Number(edge.curve)
 
+  // Check if there is an opposite-direction edge between the same two nodes
+  const hasOppositeEdge = edges.some(
+    (candidate, candidateIndex) =>
+      candidateIndex !== index && candidate.from === edge.to && candidate.to === edge.from
+  )
+
+  if (hasOppositeEdge) {
+    // Opposite edges: curve in opposite directions (positive for one, negative for other)
+    // Use the canonical direction (from < to) to determine the sign
+    const curveMagnitude = EDGE_CURVE_STEP
+    if (edge.from < edge.to) {
+      return curveMagnitude
+    } else {
+      return -curveMagnitude
+    }
+  }
+
   const pairKey = edgePairKey(edge)
   const parallelIndexes = edges
     .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
@@ -231,10 +248,22 @@ export default function GraphVisualizer({
   const activeSourceNodeId = selectedSourceNodeId ?? graph.sourceNodeId ?? null
   const activeSinkNodeId = selectedSinkNodeId ?? graph.sinkNodeId ?? null
   const [selectedResultNodeId, setSelectedResultNodeId] = useState<number | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setSelectedResultNodeId(null)
   }, [pathResults])
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!containerRef.current) return
+      if (!containerRef.current.contains(e.target as Node)) {
+        setSelectedResultNodeId(null)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [])
 
   const highlightedResult = useMemo(() => {
     if (!pathResults || selectedResultNodeId == null) return null
@@ -256,6 +285,7 @@ export default function GraphVisualizer({
 
   return (
     <div
+      ref={containerRef}
       className="flex-1 flex flex-col items-center justify-center gap-4"
       role="img"
       aria-label={`Graph visualization: ${nodes.length} nodes, ${edges.length} edges.${currentNodeLabel ? ` Current node: ${currentNodeLabel}.` : ''}${visitedLabels.length > 0 ? ` Visited: ${visitedLabels.join(', ')}.` : ''}`}
@@ -298,15 +328,18 @@ export default function GraphVisualizer({
           const isHighlighted = highlightedResult
             ? pairIncludes(highlightedEdges, edge.from, edge.to, directed)
             : false
+          // When a specific result is highlighted, suppress other algorithm-driven edge
+          // highlights by forcing non-selected edges to the default visual state.
+          const effectiveState: GraphVisualState = highlightedResult && !isHighlighted ? 'default' : state
           const baseColor =
             graph.edgeColors?.[edgeInstanceKey(edge, index, directed)] ??
             graph.edgeColors?.[edgeKey(edge.from, edge.to, directed)] ??
             edge.color ??
-            stateColors[state]
+            stateColors[effectiveState]
           const color =
-            state === 'rejected'
+            effectiveState === 'rejected'
               ? stateColors.rejected
-              : state === 'selected'
+              : effectiveState === 'selected'
                 ? stateColors.selected
                 : baseColor
           const geometry = getEdgePathGeometry(edge, index, edges, from, to, directed)
@@ -334,7 +367,7 @@ export default function GraphVisualizer({
                 d={geometry.path}
                 stroke={isHighlighted ? highlightedResult?.color : color}
                 strokeWidth={
-                  isHighlighted || state === 'current' || state === 'selected' ? 3 : 2
+                  isHighlighted || effectiveState === 'current' || effectiveState === 'selected' ? 3 : 2
                 }
                 strokeDasharray={state === 'rejected' ? '5 5' : undefined}
                 strokeLinecap="round"

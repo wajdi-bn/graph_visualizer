@@ -81,7 +81,8 @@ export default function GraphExamplePicker({
   useEffect(() => {
     if (previousAlgorithmIdRef.current !== selectedAlgorithm.id) {
       previousAlgorithmIdRef.current = selectedAlgorithm.id
-      setOpen(true)
+      // Do not auto-open the graph list when the algorithm is clicked/changed.
+      setOpen(false)
     }
   }, [selectedAlgorithm.id])
 
@@ -384,18 +385,37 @@ function SessionGraphPreview({
           const from = normalized.find((node) => node.id === edge.from)
           const to = normalized.find((node) => node.id === edge.to)
           if (!from || !to) return null
+          const offset = getEdgeCurvePreview(edge, index, graph.edges)
+          const pathD = getEdgePathForPreview(from, to, offset)
+          const dx = to.x - from.x
+          const dy = to.y - from.y
+          const length = Math.sqrt(dx * dx + dy * dy) || 1
+          const normal = { x: -dy / length, y: dx / length }
+          const midX = (from.x + to.x) / 2 + normal.x * offset
+          const midY = (from.y + to.y) / 2 + normal.y * offset
           return (
-            <line
-              key={`${edge.from}-${edge.to}-${index}`}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke={edge.color ?? stroke}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              markerEnd={graph.directed ? `url(#${markerId})` : undefined}
-            />
+            <g key={`${edge.from}-${edge.to}-${index}`}>
+              <path
+                d={pathD}
+                stroke={edge.color ?? stroke}
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                fill="none"
+                markerEnd={graph.directed ? `url(#${markerId})` : undefined}
+              />
+              {edge.weight != null && (
+                <text
+                  x={midX}
+                  y={midY}
+                  textAnchor="middle"
+                  fill={edge.weight < 0 ? '#fb7185' : '#d4d4d4'}
+                  fontSize="5"
+                  fontWeight="700"
+                >
+                  {edge.weight}
+                </text>
+              )}
+            </g>
           )
         })}
 
@@ -442,6 +462,38 @@ function normalizePreviewNodes(graph: SessionGraph) {
     y: height === 0 ? 32 : 8 + ((node.y - minY) / height) * 48,
   }))
 }
+
+function edgePairKeyPreview(from: number, to: number) {
+  return from <= to ? `${from}-${to}` : `${to}-${from}`
+}
+
+function getEdgeCurvePreview(edge: { from: number; to: number }, index: number, edges: { from: number; to: number }[]) {
+  const pairKey = edgePairKeyPreview(edge.from, edge.to)
+  const parallelIndexes = edges
+    .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
+    .filter(({ candidate }) => edgePairKeyPreview(candidate.from, candidate.to) === pairKey)
+    .map(({ candidateIndex }) => candidateIndex)
+
+  if (parallelIndexes.length <= 1) return 0
+
+  const position = parallelIndexes.indexOf(index)
+  const middle = (parallelIndexes.length - 1) / 2
+  const OFFSET_STEP = 3
+  return (position - middle) * OFFSET_STEP
+}
+
+function getEdgePathForPreview(from: { x: number; y: number }, to: { x: number; y: number }, offset: number) {
+  // offset is in pixels along the normal direction; apply same offset to both endpoints
+  if (Math.abs(offset) < 0.5) return `M ${from.x} ${from.y} L ${to.x} ${to.y}`
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const length = Math.sqrt(dx * dx + dy * dy) || 1
+  const normal = { x: -dy / length, y: dx / length }
+  const start = { x: from.x + normal.x * offset, y: from.y + normal.y * offset }
+  const end = { x: to.x + normal.x * offset, y: to.y + normal.y * offset }
+  return `M ${start.x} ${start.y} L ${end.x} ${end.y}`
+}
+
 
 function GraphExampleCard({
   item,
@@ -524,25 +576,28 @@ function GraphPreview({
           const from = item.preview.nodes.find((node) => node.id === edge.from)
           const to = item.preview.nodes.find((node) => node.id === edge.to)
           if (!from || !to) return null
-          const midX = (from.x + to.x) / 2
-          const midY = (from.y + to.y) / 2
-
+          const offset = getEdgeCurvePreview(edge, index, item.preview.edges)
+          const pathD = getEdgePathForPreview(from, to, offset)
+          const dx = to.x - from.x
+          const dy = to.y - from.y
+          const length = Math.sqrt(dx * dx + dy * dy) || 1
+          const normal = { x: -dy / length, y: dx / length }
+          const midX = (from.x + to.x) / 2 + normal.x * offset
+          const midY = (from.y + to.y) / 2 + normal.y * offset
           return (
             <g key={`${edge.from}-${edge.to}-${index}`}>
-              <line
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
+              <path
+                d={pathD}
                 stroke={edge.weight != null && edge.weight < 0 ? '#fb7185' : stroke}
                 strokeWidth="1.8"
                 strokeLinecap="round"
+                fill="none"
                 markerEnd={edge.directed ? `url(#${markerId})` : undefined}
               />
               {edge.weight != null && (
                 <text
                   x={midX}
-                  y={midY - 2}
+                  y={midY}
                   textAnchor="middle"
                   fill={edge.weight < 0 ? '#fb7185' : '#d4d4d4'}
                   fontSize="5"
