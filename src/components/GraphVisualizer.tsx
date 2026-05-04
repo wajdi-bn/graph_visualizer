@@ -331,15 +331,15 @@ export default function GraphVisualizer({
           // When a specific result is highlighted, suppress other algorithm-driven edge
           // highlights by forcing non-selected edges to the default visual state.
           const effectiveState: GraphVisualState = highlightedResult && !isHighlighted ? 'default' : state
-          const baseColor =
+          const customEdgeColor =
             graph.edgeColors?.[edgeInstanceKey(edge, index, directed)] ??
             graph.edgeColors?.[edgeKey(edge.from, edge.to, directed)] ??
-            edge.color ??
-            stateColors[effectiveState]
+            null
+          const baseColor = customEdgeColor ?? edge.color ?? stateColors[effectiveState]
           const color =
             effectiveState === 'rejected'
               ? stateColors.rejected
-              : effectiveState === 'selected'
+              : effectiveState === 'selected' && customEdgeColor == null
                 ? stateColors.selected
                 : baseColor
           const geometry = getEdgePathGeometry(edge, index, edges, from, to, directed)
