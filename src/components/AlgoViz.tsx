@@ -28,6 +28,7 @@ import {
   readSessionGraphs,
   saveSessionGraph,
   SESSION_GRAPHS_CHANGED_EVENT,
+  type SessionGraphDraft,
   type SessionGraph,
 } from '@lib/sessionGraphs'
 
@@ -210,6 +211,16 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
       selectExample(makeSessionGraphExampleId(graph.id))
     },
     [locale, openGraphEditor, selectExample],
+  )
+
+  const createPresetGraph = useCallback(
+    (draft: SessionGraphDraft) => {
+      const graph = saveSessionGraph(draft, true)
+      setSessionGraphs(readSessionGraphs())
+      openGraphEditor(graph.id)
+      selectExample(makeSessionGraphExampleId(graph.id))
+    },
+    [openGraphEditor, selectExample],
   )
 
   const handleSourceNodeClick = useCallback(
@@ -489,6 +500,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         sessionGraphs={sessionGraphs}
         onExampleChange={selectExample}
         onCreateGraph={openGraphEditor}
+        onCreatePresetGraph={createPresetGraph}
         onCreateFundamentalGraph={createFundamentalGraph}
         onEditGraph={(graphId) => openGraphEditor(graphId)}
       />

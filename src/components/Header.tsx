@@ -3,7 +3,7 @@ import type { Locale, Translations } from '@i18n/translations'
 import { getAlgorithmName, getCategoryName, locales, localeNames } from '@i18n/translations'
 import Controls from '@components/Controls'
 import GraphExamplePicker from '@components/GraphExamplePicker'
-import type { SessionGraph } from '@lib/sessionGraphs'
+import type { SessionGraph, SessionGraphDraft } from '@lib/sessionGraphs'
 import type { FundamentalGraphKind } from '@lib/fundamentalGraphs'
 
 interface HeaderProps {
@@ -32,6 +32,7 @@ interface HeaderProps {
   sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onCreatePresetGraph: (draft: SessionGraphDraft) => void
   onCreateFundamentalGraph: (kind: FundamentalGraphKind, size: number) => void
   onEditGraph: (graphId: string) => void
 }
@@ -71,6 +72,7 @@ export default function Header({
   sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onCreatePresetGraph,
   onCreateFundamentalGraph,
   onEditGraph,
 }: HeaderProps) {
@@ -171,6 +173,7 @@ export default function Header({
             sessionGraphs={sessionGraphs}
             onExampleChange={onExampleChange}
             onCreateGraph={onCreateGraph}
+            onCreatePresetGraph={onCreatePresetGraph}
             onCreateFundamentalGraph={onCreateFundamentalGraph}
             onEditGraph={onEditGraph}
           />

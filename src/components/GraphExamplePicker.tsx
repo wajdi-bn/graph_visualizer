@@ -10,6 +10,7 @@ import {
 import {
   getSessionGraphIdFromExampleId,
   makeSessionGraphExampleId,
+  type SessionGraphDraft,
   type SessionGraph,
 } from '@lib/sessionGraphs'
 import {
@@ -17,6 +18,7 @@ import {
   fundamentalGraphOptions,
   type FundamentalGraphKind,
 } from '@lib/fundamentalGraphs'
+import { getAlgorithmPresetSections } from '@lib/algorithmPresetGraphs'
 
 interface GraphExamplePickerProps {
   locale: Locale
@@ -25,6 +27,7 @@ interface GraphExamplePickerProps {
   sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onCreatePresetGraph: (draft: SessionGraphDraft) => void
   onCreateFundamentalGraph: (kind: FundamentalGraphKind, size: number) => void
   onEditGraph: (graphId: string) => void
 }
@@ -36,16 +39,19 @@ export default function GraphExamplePicker({
   sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onCreatePresetGraph,
   onCreateFundamentalGraph,
   onEditGraph,
 }: GraphExamplePickerProps) {
   const [open, setOpen] = useState(false)
   const [fundamentalSize, setFundamentalSize] = useState(3)
   const rootRef = useRef<HTMLDivElement>(null)
+  const previousAlgorithmIdRef = useRef(selectedAlgorithm.id)
   const buttonLabel = locale === 'fr' ? 'Liste des graphes' : 'Graph list'
   const createLabel = locale === 'fr' ? 'Creer un graphe' : 'Create graph'
   const fundamentalLabel = locale === 'fr' ? 'Graphes fondamentaux' : 'Fundamental graphs'
   const selectedSessionGraphId = getSessionGraphIdFromExampleId(selectedExampleId)
+  const presetSections = getAlgorithmPresetSections(selectedAlgorithm.id)
   const currentSessionGraph =
     sessionGraphs.find((graph) => graph.id === selectedSessionGraphId) ?? null
   const currentItem =
@@ -71,6 +77,13 @@ export default function GraphExamplePicker({
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [open])
+
+  useEffect(() => {
+    if (previousAlgorithmIdRef.current !== selectedAlgorithm.id) {
+      previousAlgorithmIdRef.current = selectedAlgorithm.id
+      setOpen(true)
+    }
+  }, [selectedAlgorithm.id])
 
   return (
     <div ref={rootRef} className="relative hidden sm:block">
@@ -112,6 +125,56 @@ export default function GraphExamplePicker({
 
           <div className="max-h-[min(70vh,560px)] overflow-y-auto p-3">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+              {presetSections.length > 0 && (
+                <div className="col-span-2 md:col-span-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+                  {locale === 'fr' ? 'Graphes de test de l algorithme' : 'Algorithm test graphs'}
+                </div>
+              )}
+
+              {presetSections.map((section) => (
+                <div key={section.id} className="col-span-2 md:col-span-3">
+                  <div className="mb-2 text-[11px] text-neutral-500">{section.title[locale]}</div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {section.items.map((item) => {
+                      const template = item.build(locale)
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            onCreatePresetGraph(template)
+                            setOpen(false)
+                          }}
+                          className="min-h-[132px] rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-left transition-colors hover:border-white/22 hover:bg-white/8 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+                          role="menuitem"
+                          aria-label={item.label[locale]}
+                          title={item.description[locale]}
+                        >
+                          <SessionGraphPreview
+                            graph={{
+                              id: item.id,
+                              name: template.name,
+                              description: template.description,
+                              directed: template.directed,
+                              weighted: template.weighted,
+                              nodes: template.nodes,
+                              edges: template.edges,
+                              createdAt: '',
+                              updatedAt: '',
+                            }}
+                            selected={false}
+                          />
+                          <div className="mt-2 text-xs font-semibold text-white">{item.label[locale]}</div>
+                          <div className="mt-1 line-clamp-2 text-[10px] leading-4 text-neutral-500">
+                            {item.description[locale]}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+
               {graphExampleCatalog.map((item) => (
                 <GraphExampleCard
                   key={item.id}
