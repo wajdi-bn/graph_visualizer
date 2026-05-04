@@ -1,4 +1,4 @@
-import type { Algorithm, GraphEdge, GraphVisualState, Step } from '@lib/types'
+import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphVisualState, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
@@ -15,6 +15,7 @@ import {
   requireNodes,
   requireUndirectedCustom,
   requireWeightedGraph,
+  resolveSourceNodeId,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   MinHeap,
@@ -65,10 +66,19 @@ export const prim: Algorithm = {
 
 Prim grows a minimum spanning tree by extracting the cheapest outgoing edge from a min-heap.
 
+**Requirements:**
+- All edge weights must be non-negative and finite
+- Graph must be undirected and weighted
+- Graph must be connected (or each component will be handled separately)
+
+**How to use:**
+- Default: Starts from the first node in the graph
+- Custom: Click any node in the graph visualization to start Prim from that node
+
 Time Complexity: O(E log V)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
-  generateSteps(locale = 'en', exampleId, customGraph) {
+  generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
     const demo = customGraph
       ? graphFromInput(customGraph, { directed: false })
       : { ...getWeightedDemo(exampleId), directed: false }
@@ -104,9 +114,11 @@ Space Complexity: O(V)`,
     const parentEdge: Record<number, GraphEdge | null> = {}
     const selectedEdges: [number, number][] = []
     const selectedEdgeObjects: GraphEdge[] = []
+    const rejectedEdges: [number, number][] = []
     const edgeStates: Record<string, GraphVisualState> = {}
     const steps: Step[] = []
     const heap = new MinHeap<{ node: number; key: number }>()
+    const resolvedSourceNodeId = resolveSourceNodeId(nodes, customGraph, options)
     let componentIndex = 0
     const nodeColors: Record<number, string> = {}
     let activeComponentColor: string | null = null
@@ -135,8 +147,8 @@ Space Complexity: O(V)`,
         componentIndex === 1
           ? d(
               locale,
-              `Start Prim from ${startLabel}. Keys track the cheapest edge into the tree.`,
-              `On demarre Prim depuis ${startLabel}. Les cles gardent l arete la moins chere.`,
+              `Start Prim from ${startLabel}. Keys track the cheapest edge into the tree. You can click any node to start from a different vertex.`,
+              `On demarre Prim depuis ${startLabel}. Les cles gardent l arete la moins chere. Vous pouvez cliquer sur n'importe quel sommet pour commencer ailleurs.`,
             )
           : d(
               locale,
@@ -165,7 +177,14 @@ Space Complexity: O(V)`,
 
     for (const node of nodes) {
       if (inTree.has(node.id)) continue
-      if (keyNum[node.id] === Number.POSITIVE_INFINITY) startComponent(node.id)
+      
+      // For the first component, use the resolved source node if available
+      let nodeToStart = node.id
+      if (componentIndex === 0 && resolvedSourceNodeId !== null && resolvedSourceNodeId !== undefined) {
+        nodeToStart = resolvedSourceNodeId
+      }
+      
+      if (keyNum[nodeToStart] === Number.POSITIVE_INFINITY) startComponent(nodeToStart)
 
       while (!heap.isEmpty()) {
         const entry = heap.pop()
@@ -244,6 +263,33 @@ Space Complexity: O(V)`,
               codeLine: 18,
               variables: { vertex: label(nodes, neighbor), key: weight, keys: formatDistances(nodes, key) },
             })
+          } else {
+            // Edge does not improve the key - mark as rejected and show it
+            rejectedEdges.push([current, neighbor])
+            edgeStates[edgeKey(current, neighbor)] = 'rejected'
+
+            steps.push({
+              graph: baseGraph(nodes, edges, {
+                visitedNodes: [...inTree],
+                currentNode: current,
+                currentEdge: [current, neighbor],
+                visitedEdges: [...selectedEdges],
+                selectedEdges: [...selectedEdges],
+                rejectedEdges: [...rejectedEdges],
+                edgeStates: cloneEdgeStates(edgeStates),
+                distances: cloneRecord(key),
+                predecessors: cloneRecord(parent),
+                nodeColors: cloneRecord(nodeColors),
+                phase: d(locale, 'Examine edge', 'Examiner l arete'),
+              }),
+              description: d(
+                locale,
+                `Skip ${label(nodes, current)}-${label(nodes, neighbor)}: ${label(nodes, neighbor)} already has a better connection (key ${keyNum[neighbor]} < ${weight}).`,
+                `Ignorer ${label(nodes, current)}-${label(nodes, neighbor)} : ${label(nodes, neighbor)} a deja une meilleure connexion (cle ${keyNum[neighbor]} < ${weight}).`,
+              ),
+              codeLine: 18,
+              variables: { vertex: label(nodes, neighbor), currentKey: keyNum[neighbor], edgeWeight: weight },
+            })
           }
         }
       }
@@ -264,6 +310,7 @@ Space Complexity: O(V)`,
       graph: baseGraph(nodes, edges, {
         visitedEdges: [...selectedEdges],
         selectedEdges: [...selectedEdges],
+        rejectedEdges: [...rejectedEdges],
         edgeStates: cloneEdgeStates(edgeStates),
         nodeColors: forestColors.nodeColors,
         edgeColors: forestColors.edgeColors,

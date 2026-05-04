@@ -55,6 +55,10 @@ function resolveEdgeState(edge: GraphEdge, index: number, graph: NonNullable<Ste
   const undirectedKey = edgeKey(edge.from, edge.to, false)
   const instanceKey = edgeInstanceKey(edge, index, directed)
 
+  // Check selectedEdges/rejectedEdges FIRST - these take precedence over currentEdge
+  if (pairIncludes(graph.selectedEdges, edge.from, edge.to, directed)) return 'selected'
+  if (pairIncludes(graph.rejectedEdges, edge.from, edge.to, directed)) return 'rejected'
+  
   if (graph.currentEdge) {
     const [from, to] = graph.currentEdge
     const currentMatches = directed
@@ -65,8 +69,6 @@ function resolveEdgeState(edge: GraphEdge, index: number, graph: NonNullable<Ste
   if (graph.edgeStates?.[instanceKey]) return graph.edgeStates[instanceKey]
   if (graph.edgeStates?.[key]) return graph.edgeStates[key]
   if (graph.edgeStates?.[undirectedKey]) return graph.edgeStates[undirectedKey]
-  if (pairIncludes(graph.rejectedEdges, edge.from, edge.to, directed)) return 'rejected'
-  if (pairIncludes(graph.selectedEdges, edge.from, edge.to, directed)) return 'selected'
   if (pairIncludes(graph.visitedEdges, edge.from, edge.to, directed)) return 'visited'
   return edge.state ?? 'default'
 }
@@ -267,7 +269,6 @@ export default function GraphVisualizer({
                 strokeLinejoin="round"
                 fill="none"
                 markerEnd={directed ? 'url(#arrow-context)' : undefined}
-                style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
                 filter={state === 'current' ? 'url(#glow)' : undefined}
               />
               {hasEdgeLabels && edgeLabel != null && (
@@ -391,7 +392,6 @@ export default function GraphVisualizer({
                 stroke={stroke}
                 strokeWidth={2}
                 style={{
-                  transition: 'fill 0.3s ease, stroke 0.3s ease',
                   cursor: onSourceNodeClick ? 'pointer' : 'default',
                 }}
                 filter={isCurrent ? 'url(#glow)' : undefined}
@@ -408,7 +408,6 @@ export default function GraphVisualizer({
                 fontWeight="700"
                 fontFamily="Inter, system-ui, sans-serif"
                 style={{
-                  transition: 'fill 0.3s ease',
                   pointerEvents: 'none',
                 }}
               >

@@ -39,6 +39,7 @@ const SOURCE_SELECTABLE_ALGORITHMS = new Set([
   'dfs',
   'shortest-unweighted-path',
   'ford-fulkerson',
+  'prim',
 ])
 
 function getAlgorithmUrl(locale: string, algoId: string): string {
