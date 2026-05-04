@@ -91,6 +91,7 @@ export function incompatibilityStep(
         phase: d(locale, 'Graph is not compatible', 'Graphe incompatible'),
       }),
       description: d(locale, messageEn, messageFr),
+      isError: true,
       variables: {
         nodes: nodes.length,
         edges: edges.length,

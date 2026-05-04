@@ -84,6 +84,7 @@ export interface Step {
   graph?: GraphState
   codeLine?: number
   description?: string
+  isError?: boolean
   variables?: Record<string, string | number | boolean | null>
   consoleOutput?: string[]
 }

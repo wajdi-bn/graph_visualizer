@@ -96,6 +96,12 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
   const isMobile = useIsMobile()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [mobileCodePanelOpen, setMobileCodePanelOpen] = useState(false)
+  const [edgeWeightModal, setEdgeWeightModal] = useState<{
+    edgeIndex: number
+    edge: { weight?: number }
+    inputValue: string
+    error: string
+  } | null>(null)
 
   const initialAlgorithm = initialAlgorithmId
     ? (algorithms.find((a) => a.id === initialAlgorithmId) ?? null)
@@ -252,42 +258,11 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
       if (!graph) return
 
       const currentWeight = graph.edges[edgeIndex]?.weight
-      const input = window.prompt(
-        locale === 'fr' ? 'Nouveau poids pour cette arete :' : 'New weight for this edge:',
-        currentWeight != null ? String(currentWeight) : edge.weight != null ? String(edge.weight) : '1',
-      )
-      if (input == null) return
-      const nextWeight = Number(input.trim())
-      if (!Number.isFinite(nextWeight)) {
-        window.alert(
-          locale === 'fr'
-            ? 'Veuillez saisir un poids numerique valide.'
-            : 'Please enter a valid numeric weight.',
-        )
-        return
-      }
-
-      const nextEdges = graph.edges.map((item, index) =>
-        index === edgeIndex ? { ...item, weight: nextWeight } : item,
-      )
-
-      saveSessionGraph({
-        ...graph,
-        edges: nextEdges,
-      })
-
-      selectExample(selectedExampleId, {
-        sourceNodeId: selectedSourceNodeId,
-        sinkNodeId: selectedSinkNodeId,
-      })
+      const defaultValue =
+        currentWeight != null ? String(currentWeight) : edge.weight != null ? String(edge.weight) : '1'
+      setEdgeWeightModal({ edgeIndex, edge, inputValue: defaultValue, error: '' })
     },
-    [
-      locale,
-      selectedExampleId,
-      selectExample,
-      selectedSourceNodeId,
-      selectedSinkNodeId,
-    ],
+    [selectedExampleId],
   )
 
   const runPropertyDemo = useCallback(
@@ -595,8 +570,14 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
 
           <div className="px-4 pb-3 md:px-8 md:pb-5" aria-live="polite" aria-atomic="true">
             {visualStep?.description && (
-              <div className="text-xs md:text-sm text-neutral-300 bg-white/5 rounded-lg px-3 py-2 md:px-5 md:py-3 border border-white/12">
-                <span className="text-amber-300/90 font-medium mr-2">
+              <div className={`text-xs md:text-sm rounded-lg px-3 py-2 md:px-5 md:py-3 border ${
+                visualStep.isError
+                  ? 'text-red-300 bg-red-950/40 border-red-500/30'
+                  : 'text-neutral-300 bg-white/5 border-white/12'
+              }`}>
+                <span className={`font-medium mr-2 ${
+                  visualStep.isError ? 'text-red-400' : 'text-amber-300/90'
+                }`}>
                   {t.step.replace('{n}', String(displayCurrentStep + 1))}
                 </span>
                 {visualStep.description}
@@ -787,6 +768,122 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         onSaved={handleGraphSaved}
         onDeleted={handleGraphDeleted}
       />
+
+      {edgeWeightModal && (
+        <EdgeWeightModal
+          locale={locale}
+          inputValue={edgeWeightModal.inputValue}
+          error={edgeWeightModal.error}
+          onInputChange={(value) =>
+            setEdgeWeightModal((prev) => (prev ? { ...prev, inputValue: value, error: '' } : null))
+          }
+          onConfirm={() => {
+            if (!edgeWeightModal || !selectedExampleId) return
+            const graphId = getSessionGraphIdFromExampleId(selectedExampleId)
+            if (!graphId) return
+            const graph = getSessionGraph(graphId)
+            if (!graph) return
+            const nextWeight = Number(edgeWeightModal.inputValue.trim())
+            if (!Number.isFinite(nextWeight)) {
+              setEdgeWeightModal((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      error:
+                        locale === 'fr'
+                          ? 'Veuillez saisir un poids numerique valide.'
+                          : 'Please enter a valid numeric weight.',
+                    }
+                  : null,
+              )
+              return
+            }
+            const nextEdges = graph.edges.map((item, index) =>
+              index === edgeWeightModal.edgeIndex ? { ...item, weight: nextWeight } : item,
+            )
+            saveSessionGraph({ ...graph, edges: nextEdges })
+            selectExample(selectedExampleId, {
+              sourceNodeId: selectedSourceNodeId,
+              sinkNodeId: selectedSinkNodeId,
+            })
+            setEdgeWeightModal(null)
+          }}
+          onCancel={() => setEdgeWeightModal(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function EdgeWeightModal({
+  locale,
+  inputValue,
+  error,
+  onInputChange,
+  onConfirm,
+  onCancel,
+}: {
+  locale: string
+  inputValue: string
+  error: string
+  onInputChange: (value: string) => void
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const label = locale === 'fr' ? 'Nouveau poids pour cette arête' : 'New weight for this edge'
+  const confirmLabel = locale === 'fr' ? 'Confirmer' : 'Confirm'
+  const cancelLabel = locale === 'fr' ? 'Annuler' : 'Cancel'
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(7,26,47,0.75)] backdrop-blur-[2px]"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+    >
+      <div className="bg-[#0a2038] border border-[rgba(103,232,249,0.22)] rounded-2xl shadow-2xl w-[min(360px,90vw)] p-6 flex flex-col gap-5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-400/10 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </div>
+          <h2 className="text-base font-semibold text-white leading-snug">{label}</h2>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <input
+            type="number"
+            className={`w-full bg-[rgba(7,26,47,0.7)] border rounded-xl px-4 py-3 text-white text-sm outline-none transition-all focus:ring-2 focus:ring-cyan-400/50 ${
+              error ? 'border-red-500/60 focus:ring-red-400/40' : 'border-[rgba(103,232,249,0.22)] focus:border-[rgba(34,211,238,0.5)]'
+            }`}
+            value={inputValue}
+            autoFocus
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onConfirm()
+              if (e.key === 'Escape') onCancel()
+            }}
+          />
+          {error && <p className="text-xs text-red-400 px-1">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/8 transition-all"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-5 py-2 rounded-xl text-sm font-medium bg-cyan-400 text-[#020617] hover:bg-cyan-300 transition-all active:scale-95"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
