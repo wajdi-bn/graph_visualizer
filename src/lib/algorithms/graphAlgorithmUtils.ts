@@ -299,6 +299,56 @@ export function formatPredecessors(nodes: GraphNode[], predecessors: Record<numb
     .join(', ')
 }
 
+export function buildShortestPathResults(
+  nodes: GraphNode[],
+  predecessors: Record<number, number | null>,
+  distances: Record<number, number | string>,
+  source: number,
+  colors: string[] = palette,
+) {
+  const entries: {
+    nodeId: number
+    distance: number | string
+    path: number[]
+    color: string
+    reachable: boolean
+  }[] = []
+
+  let colorIndex = 0
+  for (const node of nodes) {
+    const distance = distances[node.id]
+    const unreachable = distance === inf || distance == null
+    const visited = new Set<number>()
+    const path: number[] = []
+    let current: number | null = node.id
+
+    while (current != null && !visited.has(current)) {
+      visited.add(current)
+      path.push(current)
+      if (current === source) break
+      const pred = predecessors[current]
+      current = typeof pred === 'number' ? pred : null
+    }
+
+    const reachable = !unreachable && path[path.length - 1] === source
+    const color = reachable ? colors[colorIndex % colors.length] : 'var(--graph-edge-visited, #666666)'
+    if (reachable) colorIndex += 1
+
+    entries.push({
+      nodeId: node.id,
+      distance: distance ?? inf,
+      path: reachable ? path.reverse() : [],
+      color,
+      reachable,
+    })
+  }
+
+  return {
+    sourceId: source,
+    entries,
+  }
+}
+
 export function cloneRecord<T>(record: Record<number, T>) {
   return { ...record }
 }

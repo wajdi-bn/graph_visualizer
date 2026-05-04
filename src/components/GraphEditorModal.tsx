@@ -359,7 +359,7 @@ export default function GraphEditorModal({
     const nextEdge: GraphEdge = {
       from,
       to,
-      weight: 1,
+      weight: current.weighted ? 1 : undefined,
       directed: current.directed,
       color: DEFAULT_EDGE_COLOR,
     }
@@ -409,6 +409,7 @@ export default function GraphEditorModal({
     const idMap = new Map<number, number>()
     const nextNodes = payload.nodes.map((node) => {
       const id = nextId++
+        setWeighted={setWeighted}
       idMap.set(node.id, id)
       const point = clampNodePoint({ x: node.x + 28, y: node.y + 28 })
       return {
@@ -783,6 +784,21 @@ export default function GraphEditorModal({
     )
   }
 
+  function setWeighted(weighted: boolean) {
+    applyDraft(
+      (current) => ({
+        ...current,
+        weighted,
+        edges: current.edges.map((edge) => ({
+          ...edge,
+          weight: weighted ? (Number.isFinite(edge.weight) ? edge.weight : 1) : undefined,
+          label: weighted ? edge.label : undefined,
+        })),
+      }),
+      { keepSelection: true },
+    )
+  }
+
   function zoomBy(factor: number, center = { x: viewBoxRef.current.x + viewBoxRef.current.width / 2, y: viewBoxRef.current.y + viewBoxRef.current.height / 2 }) {
     const current = viewBoxRef.current
     const nextWidth = clamp(current.width * factor, 80, 1000)
@@ -995,6 +1011,7 @@ export default function GraphEditorModal({
               updateNode={updateNode}
               updateEdge={updateEdge}
               setDirected={setDirected}
+              setWeighted={setWeighted}
               handleSave={handleSave}
               handleDeleteGraph={handleDeleteGraph}
             />

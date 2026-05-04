@@ -13,6 +13,7 @@ export interface SessionGraph {
   name: string
   description: string
   directed: boolean
+  weighted: boolean
   nodes: GraphNode[]
   edges: GraphEdge[]
   createdAt: string
@@ -46,7 +47,12 @@ function cleanNode(node: Partial<GraphNode>, index: number): GraphNode | null {
   }
 }
 
-function cleanEdge(edge: Partial<GraphEdge>, nodeIds: Set<number>, directed: boolean): GraphEdge | null {
+function cleanEdge(
+  edge: Partial<GraphEdge>,
+  nodeIds: Set<number>,
+  directed: boolean,
+  weighted: boolean,
+): GraphEdge | null {
   const from = Number(edge.from)
   const to = Number(edge.to)
   if (!Number.isFinite(from) || !Number.isFinite(to)) return null
@@ -55,9 +61,10 @@ function cleanEdge(edge: Partial<GraphEdge>, nodeIds: Set<number>, directed: boo
   return {
     from,
     to,
-    weight: Number.isFinite(edge.weight) ? Number(edge.weight) : undefined,
+    weight: weighted && Number.isFinite(edge.weight) ? Number(edge.weight) : undefined,
     directed,
-    label: typeof edge.label === 'string' && edge.label.trim() ? edge.label.trim() : undefined,
+    label:
+      weighted && typeof edge.label === 'string' && edge.label.trim() ? edge.label.trim() : undefined,
     color: typeof edge.color === 'string' && edge.color ? edge.color : undefined,
     curve: Number.isFinite(edge.curve) ? Number(edge.curve) : undefined,
   }
@@ -65,13 +72,14 @@ function cleanEdge(edge: Partial<GraphEdge>, nodeIds: Set<number>, directed: boo
 
 export function normalizeSessionGraph(graph: Partial<SessionGraphDraft>): SessionGraphDraft {
   const directed = Boolean(graph.directed)
+  const weighted = graph.weighted == null ? true : Boolean(graph.weighted)
   const nodes = Array.isArray(graph.nodes)
     ? graph.nodes.map((node, index) => cleanNode(node, index)).filter((node): node is GraphNode => node != null)
     : []
   const nodeIds = new Set(nodes.map((node) => node.id))
   const edges = Array.isArray(graph.edges)
     ? graph.edges
-        .map((edge) => cleanEdge(edge, nodeIds, directed))
+        .map((edge) => cleanEdge(edge, nodeIds, directed, weighted))
         .filter((edge): edge is GraphEdge => edge != null)
     : []
 
@@ -80,6 +88,7 @@ export function normalizeSessionGraph(graph: Partial<SessionGraphDraft>): Sessio
     name: typeof graph.name === 'string' && graph.name.trim() ? graph.name.trim() : 'Untitled graph',
     description: typeof graph.description === 'string' ? graph.description : '',
     directed,
+    weighted,
     nodes,
     edges,
     createdAt: typeof graph.createdAt === 'string' ? graph.createdAt : undefined,

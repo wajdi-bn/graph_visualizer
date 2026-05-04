@@ -46,6 +46,15 @@ export interface Translations {
   predecessors: string
   order: string
   sets: string
+  shortestPathResults: string
+  unreachable: string
+  resultPath: string
+  components: string
+  componentLabel: string
+  processingNode: string
+  treeNodes: string
+  treeEdges: string
+  remainingNodes: string
   themeDark: string
   themeLight: string
   demoExample: string
@@ -533,6 +542,15 @@ export const translations: Record<Locale, Translations> = {
     predecessors: 'Predecessors',
     order: 'Order',
     sets: 'Sets',
+    shortestPathResults: 'Shortest path results',
+    unreachable: 'unreachable',
+    resultPath: 'Result path',
+    components: 'Components',
+    componentLabel: 'Component {n}',
+    processingNode: 'Processing node',
+    treeNodes: 'Tree nodes',
+    treeEdges: 'Tree edges',
+    remainingNodes: 'Remaining nodes',
     themeDark: 'Dark mode',
     themeLight: 'Light mode',
     demoExample: 'Demo example',
@@ -600,6 +618,15 @@ export const translations: Record<Locale, Translations> = {
     predecessors: 'Predecesseurs',
     order: 'Ordre',
     sets: 'Ensembles',
+    shortestPathResults: 'Resultats des plus courts chemins',
+    unreachable: 'inatteignable',
+    resultPath: 'Chemin resultat',
+    components: 'Composantes',
+    componentLabel: 'Composante {n}',
+    processingNode: 'Sommet en cours',
+    treeNodes: 'Sommets dans l arbre',
+    treeEdges: 'Aretes de l arbre',
+    remainingNodes: 'Sommets restants',
     themeDark: 'Mode sombre',
     themeLight: 'Mode clair',
     demoExample: 'Cas de demo',

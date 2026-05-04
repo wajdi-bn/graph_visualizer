@@ -79,6 +79,7 @@ export function validateDirectedEulerian(nodes: GraphNode[], edges: GraphEdge[],
       ok: balanced,
       start: balanced ? nonIsolated[0].id : null,
       reason: balanced ? null : 'degree-circuit' as const,
+      isCircuit: balanced,
       inDegree,
       outDegree,
     }
@@ -95,6 +96,7 @@ export function validateDirectedEulerian(nodes: GraphNode[], edges: GraphEdge[],
     ok: hasPathDegrees || hasCircuitDegrees,
     start: hasPathDegrees ? starts[0].id : hasCircuitDegrees ? nonIsolated[0].id : null,
     reason: hasPathDegrees || hasCircuitDegrees ? null : 'degree-path' as const,
+    isCircuit: hasCircuitDegrees,
     inDegree,
     outDegree,
   }
@@ -106,6 +108,7 @@ export function buildDirectedEulerianSteps(
   edges: GraphEdge[],
   start: number,
   mode: EulerianMode,
+  resultNote?: string,
 ) {
   const steps: Step[] = []
   const used = new Set<number>()
@@ -190,6 +193,28 @@ export function buildDirectedEulerianSteps(
       })
     }
   }
+
+  const finalPath = [...path].reverse()
+  steps.push({
+    graph: baseGraph(nodes, edges, {
+      directed: true,
+      visitedEdges: [...visitedEdges],
+      selectedEdges: [...visitedEdges],
+      currentNode: finalPath[finalPath.length - 1] ?? null,
+      order: finalPath,
+      resultPath: finalPath,
+      resultNote,
+      phase: mode === 'circuit'
+        ? d(locale, 'Eulerian circuit complete', 'Circuit eulerien termine')
+        : d(locale, 'Eulerian path complete', 'Chemin eulerien termine'),
+    }),
+    description: d(
+      locale,
+      `Final ${mode}: ${finalPath.map((id) => label(nodes, id)).join(' -> ')}.`,
+      `Resultat final (${mode === 'circuit' ? 'circuit' : 'chemin'}) : ${finalPath.map((id) => label(nodes, id)).join(' -> ')}.`,
+    ),
+    variables: { result: finalPath.map((id) => label(nodes, id)).join(' -> ') },
+  })
 
   return steps
 }

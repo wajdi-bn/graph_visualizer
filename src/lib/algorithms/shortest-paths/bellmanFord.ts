@@ -2,6 +2,7 @@ import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, GraphVisualS
 import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
+  buildShortestPathResults,
   cloneEdgeStates,
   cloneRecord,
   edgeKey,
@@ -12,7 +13,6 @@ import {
   isDirectedGraph,
   label,
   requireNodes,
-  requirePositiveWeights,
   requireValidSource,
   requireWeightedGraph,
   resolveSourceNodeId,
@@ -92,8 +92,17 @@ Space Complexity: O(V)`,
     if (incompatible) return incompatible
 
     if (!directed) {
-      const positiveIssue = requirePositiveWeights(locale, nodes, edges, false)
-      if (positiveIssue) return positiveIssue
+      const negativeEdge = edges.find((edge) => (edge.weight ?? 0) < 0)
+      if (negativeEdge) {
+        return incompatibilityStep(
+          locale,
+          nodes,
+          edges,
+          false,
+          'Undirected Bellman-Ford does not accept negative weights. Remove negative weights or switch to a directed graph.',
+          'Bellman-Ford non oriente n accepte pas les poids negatifs. Retirez les poids negatifs ou passez en graphe oriente.',
+        )
+      }
     }
 
     const relaxEdges = buildRelaxEdges(edges, directed)
@@ -217,6 +226,8 @@ Space Complexity: O(V)`,
       }
     }
 
+    const pathResults = buildShortestPathResults(nodes, predecessors, distances, source)
+
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed,
@@ -226,6 +237,7 @@ Space Complexity: O(V)`,
         selectedEdges: predecessorEdges(predecessors),
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
+        pathResults,
         phase: d(locale, 'Shortest paths complete', 'Plus courts chemins termines'),
       }),
       description: d(

@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from 'react'
 import type { GraphEdge, GraphNode, GraphVisualState, Step } from '@lib/types'
 import type { Locale } from '@i18n/translations'
 import { translations } from '@i18n/translations'
+import { label } from '@lib/algorithms/graphAlgorithmUtils'
 
 const NODE_RADIUS = 22
 const EDGE_CURVE_STEP = 24
@@ -24,6 +26,7 @@ interface GraphVisualizerProps {
   selectedSourceNodeId?: number | null
   selectedSinkNodeId?: number | null
   onSourceNodeClick?: (nodeId: number) => void
+  onEdgeWeightChange?: (edgeIndex: number, edge: GraphEdge) => void
 }
 
 function edgeKey(from: number, to: number, directed = false) {
@@ -44,9 +47,22 @@ function pairIncludes(pairs: [number, number][] | undefined, from: number, to: n
   ) ?? false
 }
 
+function pathToEdges(path: number[]) {
+  const edges: [number, number][] = []
+  for (let i = 1; i < path.length; i += 1) edges.push([path[i - 1], path[i]])
+  return edges
+}
+
 function formatNodeList(ids: number[] | undefined, nodes: GraphNode[]) {
   if (!ids || ids.length === 0) return ''
   return ids.map((id) => nodes.find((node) => node.id === id)?.label ?? String(id)).join(', ')
+}
+
+function formatEdgeList(pairs: [number, number][] | undefined, nodes: GraphNode[]) {
+  if (!pairs || pairs.length === 0) return ''
+  return pairs
+    .map(([from, to]) => `${label(nodes, from)}-${label(nodes, to)}`)
+    .join(', ')
 }
 
 function resolveEdgeState(edge: GraphEdge, index: number, graph: NonNullable<Step['graph']>): GraphVisualState {
@@ -175,6 +191,7 @@ export default function GraphVisualizer({
   selectedSourceNodeId,
   selectedSinkNodeId,
   onSourceNodeClick,
+  onEdgeWeightChange,
 }: GraphVisualizerProps) {
   const t = translations[locale]
   const { graph } = step
@@ -194,6 +211,14 @@ export default function GraphVisualizer({
     nodeColors,
     colors,
     phase,
+    selectedEdges,
+    components,
+    treeNodes,
+    remainingNodes,
+    pathResults,
+    resultPath,
+    resultNote,
+    labels,
   } = graph
 
   const currentNodeLabel =
@@ -205,6 +230,26 @@ export default function GraphVisualizer({
   // Prefer explicit UI selections, then fall back to the source/sink recorded by the current step.
   const activeSourceNodeId = selectedSourceNodeId ?? graph.sourceNodeId ?? null
   const activeSinkNodeId = selectedSinkNodeId ?? graph.sinkNodeId ?? null
+  const [selectedResultNodeId, setSelectedResultNodeId] = useState<number | null>(null)
+
+  useEffect(() => {
+    setSelectedResultNodeId(null)
+  }, [pathResults])
+
+  const highlightedResult = useMemo(() => {
+    if (!pathResults || selectedResultNodeId == null) return null
+    return pathResults.entries.find((entry) => entry.nodeId === selectedResultNodeId) ?? null
+  }, [pathResults, selectedResultNodeId])
+
+  const highlightedEdges = useMemo(() => {
+    if (!highlightedResult) return []
+    return pathToEdges(highlightedResult.path)
+  }, [highlightedResult])
+
+  const highlightedNodes = useMemo(() => {
+    if (!highlightedResult) return new Set<number>()
+    return new Set(highlightedResult.path)
+  }, [highlightedResult])
 
   const chipClass =
     'text-xs font-mono bg-white/6 text-neutral-300 px-2 py-1 rounded-md border border-white/8'
@@ -250,26 +295,55 @@ export default function GraphVisualizer({
 
           const directed = graph.directed || edge.directed || false
           const state = resolveEdgeState(edge, index, graph)
-          const color =
+          const isHighlighted = highlightedResult
+            ? pairIncludes(highlightedEdges, edge.from, edge.to, directed)
+            : false
+          const baseColor =
             graph.edgeColors?.[edgeInstanceKey(edge, index, directed)] ??
             graph.edgeColors?.[edgeKey(edge.from, edge.to, directed)] ??
             edge.color ??
             stateColors[state]
+          const color =
+            state === 'rejected'
+              ? stateColors.rejected
+              : state === 'selected'
+                ? stateColors.selected
+                : baseColor
           const geometry = getEdgePathGeometry(edge, index, edges, from, to, directed)
           const edgeLabel = edge.label ?? edge.weight
 
+          const handleEdgeClick = () => {
+            if (!onEdgeWeightChange) return
+            onEdgeWeightChange(index, edge)
+          }
+
           return (
             <g key={`${edge.from}-${edge.to}-${index}`}>
+              {onEdgeWeightChange && (
+                <path
+                  d={geometry.path}
+                  stroke="transparent"
+                  strokeWidth={14}
+                  strokeLinecap="round"
+                  fill="none"
+                  className="cursor-pointer"
+                  onClick={handleEdgeClick}
+                />
+              )}
               <path
                 d={geometry.path}
-                stroke={color}
-                strokeWidth={state === 'current' || state === 'selected' ? 3 : 2}
+                stroke={isHighlighted ? highlightedResult?.color : color}
+                strokeWidth={
+                  isHighlighted || state === 'current' || state === 'selected' ? 3 : 2
+                }
                 strokeDasharray={state === 'rejected' ? '5 5' : undefined}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 fill="none"
                 markerEnd={directed ? 'url(#arrow-context)' : undefined}
                 filter={state === 'current' ? 'url(#glow)' : undefined}
+                className={onEdgeWeightChange ? 'cursor-pointer' : undefined}
+                onClick={onEdgeWeightChange ? handleEdgeClick : undefined}
               />
               {hasEdgeLabels && edgeLabel != null && (
                 <>
@@ -278,8 +352,10 @@ export default function GraphVisualizer({
                     cy={geometry.label.y}
                     r={edge.weight != null && edge.weight < 0 ? 12 : 10}
                     fill="var(--graph-weight-bg, #000)"
-                    stroke={color}
+                    stroke={isHighlighted ? highlightedResult?.color : color}
                     strokeWidth={1}
+                    className={onEdgeWeightChange ? 'cursor-pointer' : undefined}
+                    onClick={onEdgeWeightChange ? handleEdgeClick : undefined}
                   />
                   <text
                     x={geometry.label.x}
@@ -290,6 +366,8 @@ export default function GraphVisualizer({
                     fontSize="9"
                     fontWeight="700"
                     fontFamily="Inter, system-ui, sans-serif"
+                    className={onEdgeWeightChange ? 'cursor-pointer' : undefined}
+                    onClick={onEdgeWeightChange ? handleEdgeClick : undefined}
                   >
                     {edgeLabel}
                   </text>
@@ -326,6 +404,8 @@ export default function GraphVisualizer({
 
           const isSourceSelected = activeSourceNodeId === node.id
           const isSinkSelected = activeSinkNodeId === node.id
+          const isResultNode = highlightedNodes.has(node.id)
+          const resultColor = highlightedResult?.color
 
           return (
             <g key={node.id}>
@@ -381,6 +461,18 @@ export default function GraphVisualizer({
                   style={{
                     animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                   }}
+                />
+              )}
+
+              {isResultNode && resultColor && (
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={NODE_RADIUS + 7}
+                  fill="none"
+                  stroke={resultColor}
+                  strokeWidth={3}
+                  opacity={0.85}
                 />
               )}
 
@@ -442,36 +534,153 @@ export default function GraphVisualizer({
         )}
       </div>
 
-      {(distances || predecessors) && (
+      {!pathResults && (distances || predecessors) && (
         <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
           {distances && (
             <StatusMap
-              label={t.distances}
-              entries={Object.entries(distances).map(([nodeId, value]) => [
-                nodes.find((node) => node.id === Number(nodeId))?.label ?? nodeId,
+              label={typeof labels?.distances === 'string' ? labels.distances : t.distances}
+              entries={Object.entries(distances).map(([nodeId, value]) => ({
+                id: Number(nodeId),
+                key: nodes.find((node) => node.id === Number(nodeId))?.label ?? nodeId,
                 value,
-              ])}
+              }))}
               chipClass={chipClass}
+              activeId={selectedResultNodeId}
+              onEntryClick={
+                pathResults
+                  ? (entryId) => {
+                      const entry = pathResults.entries.find((item) => item.nodeId === entryId)
+                      if (entry?.reachable) setSelectedResultNodeId(entryId)
+                    }
+                  : undefined
+              }
             />
           )}
           {predecessors && (
             <StatusMap
-              label={t.predecessors}
-              entries={Object.entries(predecessors).map(([nodeId, value]) => [
-                nodes.find((node) => node.id === Number(nodeId))?.label ?? nodeId,
-                value == null
-                  ? '-'
-                  : typeof value === 'number'
-                    ? nodes.find((node) => node.id === value)?.label ?? value
-                    : value,
-              ])}
+              label={typeof labels?.predecessors === 'string' ? labels.predecessors : t.predecessors}
+              entries={Object.entries(predecessors).map(([nodeId, value]) => ({
+                id: Number(nodeId),
+                key: nodes.find((node) => node.id === Number(nodeId))?.label ?? nodeId,
+                value:
+                  value == null
+                    ? '-'
+                    : typeof value === 'number'
+                      ? nodes.find((node) => node.id === value)?.label ?? value
+                      : value,
+              }))}
               chipClass={chipClass}
             />
           )}
         </div>
       )}
 
-      {sets && sets.length > 0 && (
+      {pathResults && (
+        <div className="flex flex-col items-center gap-2 max-w-3xl">
+          <span className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider">
+            {t.shortestPathResults}
+          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {pathResults.entries.map((entry) => {
+              const nodeLabel = nodes.find((node) => node.id === entry.nodeId)?.label ?? entry.nodeId
+              const distanceLabel = entry.reachable ? String(entry.distance) : t.unreachable
+              const isActive = selectedResultNodeId === entry.nodeId
+              return (
+                <button
+                  key={entry.nodeId}
+                  type="button"
+                  onClick={() => entry.reachable && setSelectedResultNodeId(entry.nodeId)}
+                  className={`${chipClass} flex items-center gap-2 ${
+                    entry.reachable ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                  } ${isActive ? 'border-white/40 text-white' : ''}`}
+                  aria-pressed={isActive}
+                >
+                  <span
+                    className="inline-flex h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span>
+                    {nodeLabel}: {distanceLabel}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {resultPath && resultPath.length > 0 && (
+        <div className="flex flex-col items-center gap-2 max-w-3xl">
+          <span className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider">
+            {t.resultPath}
+          </span>
+          <div className="text-xs font-mono text-neutral-200 bg-white/6 px-3 py-2 rounded-md border border-white/10">
+            {resultPath
+              .map((id) => nodes.find((node) => node.id === id)?.label ?? id)
+              .join(' -> ')}
+          </div>
+          {resultNote && (
+            <div className="text-[11px] text-emerald-300/90 font-medium">
+              {resultNote}
+            </div>
+          )}
+        </div>
+      )}
+
+      {typeof labels?.treeEdges === 'string' && (
+        <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
+          <StatusGroup
+            label={labels.treeEdges}
+            value={
+              selectedEdges && selectedEdges.length > 0
+                ? formatEdgeList(selectedEdges, nodes)
+                : t.empty
+            }
+            chipClass={chipClass}
+          />
+        </div>
+      )}
+
+      {(treeNodes || remainingNodes || currentNode != null) && (treeNodes || remainingNodes) && (
+        <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
+          <StatusGroup
+            label={t.processingNode}
+            value={currentNodeLabel ?? t.empty}
+            chipClass={chipClass}
+          />
+          {treeNodes && (
+            <StatusGroup
+              label={t.treeNodes}
+              value={treeNodes.length > 0 ? formatNodeList(treeNodes, nodes) : t.empty}
+              chipClass={chipClass}
+            />
+          )}
+          {remainingNodes && (
+            <StatusGroup
+              label={t.remainingNodes}
+              value={remainingNodes.length > 0 ? formatNodeList(remainingNodes, nodes) : t.empty}
+              chipClass={chipClass}
+            />
+          )}
+        </div>
+      )}
+
+      {components && components.length > 0 && (
+        <div className="flex flex-col items-center gap-2 max-w-3xl">
+          <span className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider">
+            {t.components}
+          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {components.map((component, index) => (
+              <span key={index} className={chipClass}>
+                {t.componentLabel.replace('{n}', String(index + 1))}: {formatNodeList(component, nodes)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sets && sets.length > 0 && !treeNodes && !remainingNodes && (
         <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
           <span className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider">
             {t.sets}
@@ -516,10 +725,14 @@ function StatusMap({
   label,
   entries,
   chipClass,
+  activeId,
+  onEntryClick,
 }: {
   label: string
-  entries: [string, string | number][]
+  entries: { id?: number; key: string; value: string | number }[]
   chipClass: string
+  activeId?: number | null
+  onEntryClick?: (id: number) => void
 }) {
   return (
     <div className="flex items-center gap-2.5 flex-wrap justify-center">
@@ -527,11 +740,33 @@ function StatusMap({
         {label}
       </span>
       <div className="flex gap-1 flex-wrap" aria-hidden="true">
-        {entries.map(([key, value]) => (
-          <span key={key} className={chipClass}>
-            {key}: {String(value)}
-          </span>
-        ))}
+        {entries.map(({ id, key, value }) => {
+          const isActive = id != null && activeId === id
+          const canClick = id != null && onEntryClick
+          const className = `${chipClass} ${canClick ? 'cursor-pointer' : ''} ${
+            isActive ? 'border-white/40 text-white' : ''
+          }`
+
+          if (canClick) {
+            return (
+              <button
+                key={key}
+                type="button"
+                className={className}
+                onClick={() => onEntryClick(id)}
+                aria-pressed={isActive}
+              >
+                {key}: {String(value)}
+              </button>
+            )
+          }
+
+          return (
+            <span key={key} className={className}>
+              {key}: {String(value)}
+            </span>
+          )
+        })}
       </div>
     </div>
   )

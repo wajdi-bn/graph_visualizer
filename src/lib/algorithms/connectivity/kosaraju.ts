@@ -222,6 +222,7 @@ Space Complexity: O(V)`,
         directed: true,
         visitedNodes: nodes.map((n) => n.id),
         nodeColors: cloneRecord(nodeColors),
+        components,
         phase: d(locale, 'SCCs found', 'CFC trouvees'),
       }),
       description: d(

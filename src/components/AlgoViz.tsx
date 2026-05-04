@@ -22,7 +22,10 @@ import { buildPropertyDemo } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   getSessionGraphIdFromExampleId,
   makeSessionGraphExampleId,
+  isSessionGraphExampleId,
+  getSessionGraph,
   readSessionGraphs,
+  saveSessionGraph,
   SESSION_GRAPHS_CHANGED_EVENT,
   type SessionGraph,
 } from '@lib/sessionGraphs'
@@ -218,6 +221,53 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     [selectedAlgorithm, selectedExampleId, selectedSourceNodeId, selectedSinkNodeId, selectExample],
   )
 
+  const handleEdgeWeightChange = useCallback(
+    (edgeIndex: number, edge: { weight?: number }) => {
+      if (!selectedExampleId) return
+      const graphId = getSessionGraphIdFromExampleId(selectedExampleId)
+      if (!graphId) return
+      const graph = getSessionGraph(graphId)
+      if (!graph) return
+
+      const currentWeight = graph.edges[edgeIndex]?.weight
+      const input = window.prompt(
+        locale === 'fr' ? 'Nouveau poids pour cette arete :' : 'New weight for this edge:',
+        currentWeight != null ? String(currentWeight) : edge.weight != null ? String(edge.weight) : '1',
+      )
+      if (input == null) return
+      const nextWeight = Number(input.trim())
+      if (!Number.isFinite(nextWeight)) {
+        window.alert(
+          locale === 'fr'
+            ? 'Veuillez saisir un poids numerique valide.'
+            : 'Please enter a valid numeric weight.',
+        )
+        return
+      }
+
+      const nextEdges = graph.edges.map((item, index) =>
+        index === edgeIndex ? { ...item, weight: nextWeight } : item,
+      )
+
+      saveSessionGraph({
+        ...graph,
+        edges: nextEdges,
+      })
+
+      selectExample(selectedExampleId, {
+        sourceNodeId: selectedSourceNodeId,
+        sinkNodeId: selectedSinkNodeId,
+      })
+    },
+    [
+      locale,
+      selectedExampleId,
+      selectExample,
+      selectedSourceNodeId,
+      selectedSinkNodeId,
+    ],
+  )
+
   const runPropertyDemo = useCallback(
     (property: PropertyKey) => {
       if (!currentStepData?.graph) return
@@ -387,6 +437,9 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
             selectedSinkNodeId={selectedSinkNodeId}
             onSourceNodeClick={
               SOURCE_SELECTABLE_ALGORITHMS.has(selectedAlgorithm.id) ? handleSourceNodeClick : undefined
+            }
+            onEdgeWeightChange={
+              isSessionGraphExampleId(selectedExampleId) ? handleEdgeWeightChange : undefined
             }
           />
         )}

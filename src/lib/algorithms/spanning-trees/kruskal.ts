@@ -13,7 +13,6 @@ import {
   requireNodes,
   requireUndirectedCustom,
   requireWeightedGraph,
-  setsFromParent,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   buildForestColors,
@@ -80,6 +79,7 @@ Space Complexity: O(V)`,
     const rejectedEdges: [number, number][] = []
     const edgeStates: Record<string, GraphVisualState> = {}
     const steps: Step[] = []
+    const treeNodes = new Set<number>()
     const componentCount = countComponents(nodes, edges)
     const targetEdgeCount = getForestTargetEdgeCount(nodes.length, componentCount)
     let stoppedEarly = false
@@ -112,6 +112,11 @@ Space Complexity: O(V)`,
       nodeColors[startNodeId] = componentColorByNode[startNodeId] ?? palette[0]
     }
 
+    const treeSnapshot = () => ({
+      treeNodes: [...treeNodes],
+      remainingNodes: nodes.filter((node) => !treeNodes.has(node.id)).map((node) => node.id),
+    })
+
     const find = (x: number): number => {
       if (parent[x] !== x) parent[x] = find(parent[x])
       return parent[x]
@@ -134,11 +139,10 @@ Space Complexity: O(V)`,
       rank[node.id] = 0
     }
 
-    const initialSets = setsFromParent(nodes, parent)
     steps.push({
       graph: baseGraph(nodes, edges, {
         currentNode: startNodeId,
-        sets: initialSets,
+        ...treeSnapshot(),
         nodeColors: { ...nodeColors },
         phase: d(locale, 'Sort edges by weight', 'Trier les aretes par poids'),
       }),
@@ -165,6 +169,8 @@ Space Complexity: O(V)`,
         selectedEdges.push([edge.from, edge.to])
         selectedEdgeObjects.push(edge)
         edgeStates[edgeKey(edge.from, edge.to)] = 'selected'
+        treeNodes.add(edge.from)
+        treeNodes.add(edge.to)
 
         const color = componentColorByNode[edge.from] ?? componentColorByNode[edge.to]
         if (color) {
@@ -179,7 +185,6 @@ Space Complexity: O(V)`,
         edgeStates[edgeKey(edge.from, edge.to)] = 'rejected'
       }
 
-      const currentSets = setsFromParent(nodes, parent)
       steps.push({
         graph: baseGraph(nodes, edges, {
           currentNode: stepCurrentNode,
@@ -188,7 +193,7 @@ Space Complexity: O(V)`,
           selectedEdges: [...selectedEdges],
           rejectedEdges: [...rejectedEdges],
           edgeStates: cloneEdgeStates(edgeStates),
-          sets: currentSets,
+          ...treeSnapshot(),
           nodeColors: { ...nodeColors },
           phase: d(locale, 'Cycle test with disjoint sets', 'Test de cycle avec ensembles disjoints'),
         }),
@@ -209,14 +214,13 @@ Space Complexity: O(V)`,
 
       if (accepted && selectedEdgeObjects.length >= targetEdgeCount) {
         stoppedEarly = true
-        const completedSets = setsFromParent(nodes, parent)
         steps.push({
           graph: baseGraph(nodes, edges, {
             visitedEdges: [...selectedEdges],
             selectedEdges: [...selectedEdges],
             rejectedEdges: [...rejectedEdges],
             edgeStates: cloneEdgeStates(edgeStates),
-            sets: completedSets,
+            ...treeSnapshot(),
             nodeColors: { ...nodeColors },
             phase: d(locale, 'MST complete', 'ACM termine'),
           }),
@@ -235,7 +239,7 @@ Space Complexity: O(V)`,
     for (const node of nodes) {
       if (nodeColors[node.id]) continue
       nodeColors[node.id] = componentColorByNode[node.id]
-      const soloSets = setsFromParent(nodes, parent)
+      treeNodes.add(node.id)
       steps.push({
         graph: baseGraph(nodes, edges, {
           currentNode: node.id,
@@ -243,7 +247,7 @@ Space Complexity: O(V)`,
           selectedEdges: [...selectedEdges],
           rejectedEdges: [...rejectedEdges],
           edgeStates: cloneEdgeStates(edgeStates),
-          sets: soloSets,
+          ...treeSnapshot(),
           nodeColors: { ...nodeColors },
           phase: d(locale, 'Single-vertex component', 'Composante monovertex'),
         }),
@@ -276,7 +280,7 @@ Space Complexity: O(V)`,
         edgeStates: cloneEdgeStates(edgeStates),
         nodeColors: forestColors.nodeColors,
         edgeColors: forestColors.edgeColors,
-        sets: setsFromParent(nodes, parent),
+        ...treeSnapshot(),
         phase: d(locale, 'MST summary', 'Resume de l ACM'),
       }),
       description: d(

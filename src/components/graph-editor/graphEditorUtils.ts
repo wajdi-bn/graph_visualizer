@@ -33,6 +33,7 @@ export function blankDraft(): EditorDraft {
     name: 'Untitled graph',
     description: '',
     directed: false,
+    weighted: true,
     nodes: [],
     edges: [],
   }
@@ -52,6 +53,7 @@ export function draftFromGraph(graph: SessionGraph): EditorDraft {
     name: graph.name,
     description: graph.description,
     directed: graph.directed,
+    weighted: graph.weighted,
     nodes: graph.nodes.map((node) => ({ ...node })),
     edges: graph.edges.map((edge) => ({ ...edge })),
     createdAt: graph.createdAt,
@@ -68,6 +70,7 @@ export function draftFromJson(value: unknown): EditorDraft | null {
     name: normalized.name,
     description: normalized.description,
     directed: normalized.directed,
+    weighted: normalized.weighted ?? true,
     nodes: normalized.nodes,
     edges: normalized.edges,
   }

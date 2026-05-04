@@ -3,6 +3,7 @@ import { d } from '@lib/algorithms/shared'
 import {
   adjacency,
   baseGraph,
+  buildShortestPathResults,
   cloneEdgeStates,
   cloneRecord,
   edgeKey,
@@ -245,6 +246,8 @@ Space Complexity: O(V)`,
       }
     }
 
+    const pathResults = buildShortestPathResults(nodes, predecessors, distances, source)
+
     steps.push({
       graph: baseGraph(nodes, edges, {
         visitedNodes: [...visitedNodes],
@@ -254,6 +257,7 @@ Space Complexity: O(V)`,
         selectedEdges: [...selectedEdges],
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
+        pathResults,
         phase: d(locale, 'Shortest-path tree complete', 'Arbre des plus courts chemins termine'),
       }),
       description: d(

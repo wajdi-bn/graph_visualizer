@@ -169,6 +169,24 @@ Space Complexity: O(V)`,
       components.push(component)
     }
 
+    steps.push({
+      graph: baseGraph(nodes, edges, {
+        visitedNodes: [...visitedNodes],
+        nodeColors: cloneRecord(nodeColors),
+        visitedEdges: [...visitedEdges],
+        selectedEdges: [...visitedEdges],
+        edgeStates: cloneEdgeStates(edgeStates),
+        components,
+        phase: d(locale, 'Components complete', 'Composantes terminees'),
+      }),
+      description: d(
+        locale,
+        `Connected components complete. Found ${components.length} component(s).`,
+        `Composantes connexes terminees. ${components.length} composante(s) trouvee(s).`,
+      ),
+      variables: { components: components.length },
+    })
+
     return steps
   },
 }

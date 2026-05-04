@@ -122,6 +122,7 @@ Space Complexity: O(V)`,
     let componentIndex = 0
     const nodeColors: Record<number, string> = {}
     let activeComponentColor: string | null = null
+    const treeEdgesLabel = d(locale, 'Tree edges', 'Aretes de l arbre')
 
     for (const node of nodes) {
       key[node.id] = inf
@@ -160,9 +161,9 @@ Space Complexity: O(V)`,
         graph: baseGraph(nodes, edges, {
           visitedNodes: [...inTree],
           currentNode: startId,
-          distances: cloneRecord(key),
-          predecessors: cloneRecord(parent),
           nodeColors: cloneRecord(nodeColors),
+          selectedEdges: [...selectedEdges],
+          labels: { treeEdges: treeEdgesLabel },
           phase,
         }),
         description,
@@ -211,9 +212,8 @@ Space Complexity: O(V)`,
             selectedEdges: [...selectedEdges],
             currentEdge: parent[current] == null ? null : [parent[current]!, current],
             edgeStates: cloneEdgeStates(edgeStates),
-            distances: cloneRecord(key),
-            predecessors: cloneRecord(parent),
             nodeColors: cloneRecord(nodeColors),
+            labels: { treeEdges: treeEdgesLabel },
             phase: d(locale, 'Extract min from heap', 'Extraire le minimum du tas'),
           }),
           description:
@@ -233,7 +233,35 @@ Space Complexity: O(V)`,
         })
 
         for (const { node: neighbor, weight, edge } of adj[current] ?? []) {
-          if (inTree.has(neighbor)) continue
+          if (inTree.has(neighbor)) {
+            if (!hasUndirectedPair(rejectedEdges, current, neighbor)) {
+              rejectedEdges.push([current, neighbor])
+            }
+            edgeStates[edgeKey(current, neighbor)] = 'rejected'
+
+            steps.push({
+              graph: baseGraph(nodes, edges, {
+                visitedNodes: [...inTree],
+                currentNode: current,
+                currentEdge: [current, neighbor],
+                visitedEdges: [...selectedEdges],
+                selectedEdges: [...selectedEdges],
+                rejectedEdges: [...rejectedEdges],
+                edgeStates: cloneEdgeStates(edgeStates),
+                nodeColors: cloneRecord(nodeColors),
+                labels: { treeEdges: treeEdgesLabel },
+                phase: d(locale, 'Reject cycle edge', 'Rejeter une arete de cycle'),
+              }),
+              description: d(
+                locale,
+                `Reject ${label(nodes, current)}-${label(nodes, neighbor)} because ${label(nodes, neighbor)} is already in the tree.`,
+                `Rejeter ${label(nodes, current)}-${label(nodes, neighbor)} car ${label(nodes, neighbor)} est deja dans l arbre.`,
+              ),
+              codeLine: 18,
+              variables: { edge: `${label(nodes, current)}-${label(nodes, neighbor)}` },
+            })
+            continue
+          }
           if (weight < keyNum[neighbor]) {
             keyNum[neighbor] = weight
             key[neighbor] = weight
@@ -250,9 +278,8 @@ Space Complexity: O(V)`,
                 visitedEdges: [...selectedEdges],
                 selectedEdges: [...selectedEdges],
                 edgeStates: cloneEdgeStates(edgeStates),
-                distances: cloneRecord(key),
-                predecessors: cloneRecord(parent),
                 nodeColors: cloneRecord(nodeColors),
+                labels: { treeEdges: treeEdgesLabel },
                 phase: d(locale, 'Update frontier keys', 'Mettre a jour les cles de frontiere'),
               }),
               description: d(
@@ -277,9 +304,8 @@ Space Complexity: O(V)`,
                 selectedEdges: [...selectedEdges],
                 rejectedEdges: [...rejectedEdges],
                 edgeStates: cloneEdgeStates(edgeStates),
-                distances: cloneRecord(key),
-                predecessors: cloneRecord(parent),
                 nodeColors: cloneRecord(nodeColors),
+                labels: { treeEdges: treeEdgesLabel },
                 phase: d(locale, 'Examine edge', 'Examiner l arete'),
               }),
               description: d(
@@ -314,6 +340,7 @@ Space Complexity: O(V)`,
         edgeStates: cloneEdgeStates(edgeStates),
         nodeColors: forestColors.nodeColors,
         edgeColors: forestColors.edgeColors,
+        labels: { treeEdges: treeEdgesLabel },
         phase: d(locale, 'MST summary', 'Resume de l ACM'),
       }),
       description: d(
@@ -355,6 +382,10 @@ Space Complexity: O(V)`,
 
     return steps
   },
+}
+
+function hasUndirectedPair(pairs: [number, number][], from: number, to: number) {
+  return pairs.some(([a, b]) => (a === from && b === to) || (a === to && b === from))
 }
 
 

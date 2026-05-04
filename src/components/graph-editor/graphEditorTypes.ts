@@ -35,6 +35,7 @@ export type EditorDraft = SessionGraphDraft & {
   name: string
   description: string
   directed: boolean
+  weighted: boolean
   nodes: GraphNode[]
   edges: GraphEdge[]
 }

@@ -62,6 +62,21 @@ export interface GraphState {
   order?: number[]
   colors?: Record<number, string>
   sets?: GraphSetState[]
+  components?: number[][]
+  treeNodes?: number[]
+  remainingNodes?: number[]
+  pathResults?: {
+    sourceId: number
+    entries: {
+      nodeId: number
+      distance: number | string
+      path: number[]
+      color: string
+      reachable: boolean
+    }[]
+  }
+  resultPath?: number[]
+  resultNote?: string
   phase?: string
 }
 

@@ -15,6 +15,7 @@ interface GraphEditorInspectorProps {
   updateNode: (nodeId: number, update: Partial<GraphNode>) => void
   updateEdge: (index: number, update: Partial<GraphEdge>) => void
   setDirected: (directed: boolean) => void
+  setWeighted: (weighted: boolean) => void
   handleSave: (saveAsCopy?: boolean) => void
   handleDeleteGraph: () => void
 }
@@ -30,6 +31,7 @@ export function GraphEditorInspector({
   updateNode,
   updateEdge,
   setDirected,
+  setWeighted,
   handleSave,
   handleDeleteGraph,
 }: GraphEditorInspectorProps) {
@@ -67,6 +69,15 @@ export function GraphEditorInspector({
                 type="checkbox"
                 checked={draft.directed}
                 onChange={(event) => setDirected(event.target.checked)}
+                className="h-4 w-4 accent-cyan-300"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-md border border-white/10 bg-black px-2 py-2 text-xs text-neutral-300">
+              <span>{locale === 'fr' ? 'Graphe pondere' : 'Weighted graph'}</span>
+              <input
+                type="checkbox"
+                checked={draft.weighted}
+                onChange={(event) => setWeighted(event.target.checked)}
                 className="h-4 w-4 accent-cyan-300"
               />
             </label>
@@ -188,24 +199,28 @@ export function GraphEditorInspector({
                   </select>
                 </FieldLabel>
               </div>
-              <FieldLabel label={locale === 'fr' ? 'Poids' : 'Weight'}>
-                <input
-                  type="number"
-                  value={selectedEdge.weight ?? ''}
-                  onChange={(event) =>
-                    updateEdge(selectedEdgeIndex, {
-                      weight: event.target.value === '' ? undefined : Number(event.target.value),
-                    })}
-                  className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
-                />
-              </FieldLabel>
-              <FieldLabel label={locale === 'fr' ? 'Etiquette' : 'Label'}>
-                <input
-                  value={selectedEdge.label ?? ''}
-                  onChange={(event) => updateEdge(selectedEdgeIndex, { label: event.target.value || undefined })}
-                  className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
-                />
-              </FieldLabel>
+              {draft.weighted && (
+                <>
+                  <FieldLabel label={locale === 'fr' ? 'Poids' : 'Weight'}>
+                    <input
+                      type="number"
+                      value={selectedEdge.weight ?? ''}
+                      onChange={(event) =>
+                        updateEdge(selectedEdgeIndex, {
+                          weight: event.target.value === '' ? undefined : Number(event.target.value),
+                        })}
+                      className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
+                    />
+                  </FieldLabel>
+                  <FieldLabel label={locale === 'fr' ? 'Etiquette' : 'Label'}>
+                    <input
+                      value={selectedEdge.label ?? ''}
+                      onChange={(event) => updateEdge(selectedEdgeIndex, { label: event.target.value || undefined })}
+                      className="h-8 w-full rounded-md border border-white/10 bg-black px-2 text-xs text-white outline-none focus:border-white/24"
+                    />
+                  </FieldLabel>
+                </>
+              )}
               <FieldLabel label={locale === 'fr' ? 'Couleur' : 'Color'}>
                 <input
                   type="color"

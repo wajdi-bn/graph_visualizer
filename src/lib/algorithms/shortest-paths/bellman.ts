@@ -1,16 +1,18 @@
 import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
+import { bellmanFord } from '@lib/algorithms/shortest-paths/bellmanFord'
 import {
   baseGraph,
+  buildShortestPathResults,
   cloneRecord,
   edgeKey,
   formatDistances,
   graphFromInput,
+  hasNegativeWeightCycle,
   incompatibilityStep,
   inf,
   isDirectedGraph,
   label,
-  requireDirectedCustom,
   requireNodes,
   requireValidSource,
   requireWeightedGraph,
@@ -69,16 +71,23 @@ Space Complexity: O(V)`,
     ]
 
     if (customGraph) {
-      const custom = graphFromInput(customGraph, { directed: isDirectedGraph(customGraph) })
-      const incompatible = requireDirectedCustom(
-        locale,
-        customGraph,
-        custom.nodes,
-        custom.edges,
-        'Bellman for DAGs needs a directed graph. Turn on Directed graph in the editor.',
-        'Bellman pour DAG exige un graphe oriente. Activez Graphe oriente dans l editeur.',
-      )
-      if (incompatible) return incompatible
+      const directedCustom = isDirectedGraph(customGraph)
+      const custom = graphFromInput(customGraph, { directed: directedCustom })
+      if (!directedCustom) {
+        const hasNegative = custom.edges.some((edge) => (edge.weight ?? 0) < 0)
+        if (hasNegative) {
+          return incompatibilityStep(
+            locale,
+            custom.nodes,
+            custom.edges,
+            false,
+            'Undirected graphs must not contain negative weights.',
+            'Les graphes non orientes ne doivent pas contenir de poids negatifs.',
+          )
+        }
+        return bellmanFord.generateSteps(locale, undefined, customGraph, options)
+      }
+
       nodes = custom.nodes
       edges = custom.edges.map((edge) => ({ ...edge, directed: true }))
     }
@@ -88,16 +97,20 @@ Space Complexity: O(V)`,
       requireWeightedGraph(locale, nodes, edges, true)
     if (incompatible) return incompatible
 
-    const order = topologicalOrder(nodes, edges)
-    if (!order) {
+    if (hasNegativeWeightCycle(nodes, edges)) {
       return incompatibilityStep(
         locale,
         nodes,
         edges,
         true,
-        'Bellman for DAGs requires a directed graph with no cycle.',
-        'Bellman pour DAG exige un graphe oriente sans cycle.',
+        'Bellman requires a directed graph with no negative-weight cycle.',
+        'Bellman exige un graphe oriente sans circuit absorbant.',
       )
+    }
+
+    const order = topologicalOrder(nodes, edges)
+    if (!order) {
+      return bellmanFord.generateSteps(locale, undefined, customGraph, options)
     }
 
     const source = resolveSourceNodeId(nodes, customGraph, options)
@@ -189,6 +202,7 @@ Space Complexity: O(V)`,
         order,
         distances: cloneRecord(distances),
         predecessors: cloneRecord(predecessors),
+        pathResults: buildShortestPathResults(nodes, predecessors, distances, source),
         phase: d(locale, 'DAG shortest paths complete', 'Plus courts chemins DAG termines'),
       }),
       description: d(
