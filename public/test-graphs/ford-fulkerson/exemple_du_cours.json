@@ -1,0 +1,111 @@
+{
+  "id": "a2571c29-3952-45af-b7a3-5b3dd8619588",
+  "name": "Untitled graph",
+  "description": "",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    {
+      "id": 0,
+      "label": "A",
+      "x": 147.1176300048828,
+      "y": 103.23528289794922,
+      "color": "#1e293b"
+    },
+    {
+      "id": 1,
+      "label": "B",
+      "x": 289.4705810546875,
+      "y": 105.82353210449219,
+      "color": "#1e293b"
+    },
+    {
+      "id": 2,
+      "label": "C",
+      "x": 152.29412841796875,
+      "y": 220.35292053222656,
+      "color": "#1e293b"
+    },
+    {
+      "id": 3,
+      "label": "D",
+      "x": 295.941162109375,
+      "y": 224.23529052734375,
+      "color": "#1e293b"
+    },
+    {
+      "id": 4,
+      "label": "E",
+      "x": 71.41177368164062,
+      "y": 165.35292053222656,
+      "color": "#1e293b"
+    },
+    {
+      "id": 5,
+      "label": "F",
+      "x": 397.5294189453125,
+      "y": 166.6470489501953,
+      "color": "#1e293b"
+    }
+  ],
+  "edges": [
+    {
+      "from": 4,
+      "to": 0,
+      "weight": 16,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "weight": 12,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 5,
+      "weight": 20,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 4,
+      "to": 2,
+      "weight": 13,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "weight": 14,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 3,
+      "to": 5,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 2,
+      "weight": 6,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 2,
+      "weight": 9,
+      "directed": true,
+      "color": "#475569"
+    }
+  ],
+  "createdAt": "2026-05-04T21:51:04.397Z",
+  "updatedAt": "2026-05-04T21:51:04.397Z"
+}
