@@ -19,6 +19,7 @@ import GraphEditorModal from '@components/GraphEditorModal'
 import type { Algorithm, Step } from '@lib/types'
 import type { PropertyKey, PropertyDemoResult } from '@lib/algorithms/graphAlgorithmUtils'
 import { buildPropertyDemo } from '@lib/algorithms/graphAlgorithmUtils'
+import { buildFundamentalGraphTemplate, type FundamentalGraphKind } from '@lib/fundamentalGraphs'
 import {
   getSessionGraphIdFromExampleId,
   makeSessionGraphExampleId,
@@ -200,6 +201,16 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
     setEditingGraphId(graphId)
     setGraphEditorOpen(true)
   }, [])
+
+  const createFundamentalGraph = useCallback(
+    (kind: FundamentalGraphKind, size: number) => {
+      const graph = saveSessionGraph(buildFundamentalGraphTemplate(kind, size, locale), true)
+      setSessionGraphs(readSessionGraphs())
+      openGraphEditor(graph.id)
+      selectExample(makeSessionGraphExampleId(graph.id))
+    },
+    [locale, openGraphEditor, selectExample],
+  )
 
   const handleSourceNodeClick = useCallback(
     (nodeId: number) => {
@@ -478,6 +489,7 @@ export default function AlgoViz({ locale = 'en', initialAlgorithmId }: AlgoVizPr
         sessionGraphs={sessionGraphs}
         onExampleChange={selectExample}
         onCreateGraph={openGraphEditor}
+        onCreateFundamentalGraph={createFundamentalGraph}
         onEditGraph={(graphId) => openGraphEditor(graphId)}
       />
 

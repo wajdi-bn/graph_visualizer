@@ -4,6 +4,7 @@ import { getAlgorithmName, getCategoryName, locales, localeNames } from '@i18n/t
 import Controls from '@components/Controls'
 import GraphExamplePicker from '@components/GraphExamplePicker'
 import type { SessionGraph } from '@lib/sessionGraphs'
+import type { FundamentalGraphKind } from '@lib/fundamentalGraphs'
 
 interface HeaderProps {
   locale: Locale
@@ -31,6 +32,7 @@ interface HeaderProps {
   sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onCreateFundamentalGraph: (kind: FundamentalGraphKind, size: number) => void
   onEditGraph: (graphId: string) => void
 }
 
@@ -69,6 +71,7 @@ export default function Header({
   sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onCreateFundamentalGraph,
   onEditGraph,
 }: HeaderProps) {
   const algorithmName = selectedAlgorithm
@@ -168,6 +171,7 @@ export default function Header({
             sessionGraphs={sessionGraphs}
             onExampleChange={onExampleChange}
             onCreateGraph={onCreateGraph}
+            onCreateFundamentalGraph={onCreateFundamentalGraph}
             onEditGraph={onEditGraph}
           />
         )}

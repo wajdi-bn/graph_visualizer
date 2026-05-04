@@ -12,6 +12,11 @@ import {
   makeSessionGraphExampleId,
   type SessionGraph,
 } from '@lib/sessionGraphs'
+import {
+  buildFundamentalGraphTemplate,
+  fundamentalGraphOptions,
+  type FundamentalGraphKind,
+} from '@lib/fundamentalGraphs'
 
 interface GraphExamplePickerProps {
   locale: Locale
@@ -20,6 +25,7 @@ interface GraphExamplePickerProps {
   sessionGraphs: SessionGraph[]
   onExampleChange: (exampleId: string) => void
   onCreateGraph: () => void
+  onCreateFundamentalGraph: (kind: FundamentalGraphKind, size: number) => void
   onEditGraph: (graphId: string) => void
 }
 
@@ -30,12 +36,15 @@ export default function GraphExamplePicker({
   sessionGraphs,
   onExampleChange,
   onCreateGraph,
+  onCreateFundamentalGraph,
   onEditGraph,
 }: GraphExamplePickerProps) {
   const [open, setOpen] = useState(false)
+  const [fundamentalSize, setFundamentalSize] = useState(3)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonLabel = locale === 'fr' ? 'Liste des graphes' : 'Graph list'
   const createLabel = locale === 'fr' ? 'Creer un graphe' : 'Create graph'
+  const fundamentalLabel = locale === 'fr' ? 'Graphes fondamentaux' : 'Fundamental graphs'
   const selectedSessionGraphId = getSessionGraphIdFromExampleId(selectedExampleId)
   const currentSessionGraph =
     sessionGraphs.find((graph) => graph.id === selectedSessionGraphId) ?? null
@@ -139,6 +148,69 @@ export default function GraphExamplePicker({
                   }}
                 />
               ))}
+
+              <div className="col-span-2 md:col-span-3 mt-1 border-t border-white/8 pt-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+                    {fundamentalLabel}
+                  </div>
+                  <label className="flex items-center gap-2 text-[10px] text-neutral-500">
+                    <span>n</span>
+                    <input
+                      type="number"
+                      min={3}
+                      max={12}
+                      value={fundamentalSize}
+                      onChange={(event) => {
+                        const next = Number(event.target.value)
+                        setFundamentalSize(Number.isFinite(next) ? Math.max(3, Math.floor(next)) : 3)
+                      }}
+                      className="h-7 w-16 rounded-md border border-white/10 bg-black px-2 text-[11px] text-white outline-none focus:border-white/24"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  {fundamentalGraphOptions.map((option) => {
+                    const template = buildFundamentalGraphTemplate(option.kind, fundamentalSize, locale)
+                    return (
+                      <button
+                        key={option.kind}
+                        type="button"
+                        onClick={() => {
+                          onCreateFundamentalGraph(option.kind, fundamentalSize)
+                          setOpen(false)
+                        }}
+                        className="min-h-[132px] rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-left transition-colors hover:border-white/22 hover:bg-white/8 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+                        role="menuitem"
+                        aria-label={`${option.label[locale]} n=${fundamentalSize}`}
+                        title={option.description[locale]}
+                      >
+                        <SessionGraphPreview
+                          graph={{
+                            id: option.kind,
+                            name: template.name,
+                            description: template.description,
+                            directed: template.directed,
+                            weighted: template.weighted,
+                            nodes: template.nodes,
+                            edges: template.edges,
+                            createdAt: '',
+                            updatedAt: '',
+                          }}
+                          selected={false}
+                        />
+                        <div className="mt-2 text-xs font-semibold text-white">
+                          {option.label[locale]}
+                        </div>
+                        <div className="mt-1 text-[10px] leading-4 text-neutral-500">
+                          {option.description[locale]} {locale === 'fr' ? 'par defaut' : 'by default'} n = {fundamentalSize}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
               <button
                 type="button"
