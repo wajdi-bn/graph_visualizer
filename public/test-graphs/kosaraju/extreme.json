@@ -1,0 +1,30 @@
+{
+  "id": "kosaraju-extreme",
+  "name": "Kosaraju - Extreme",
+  "description": "Dense directed graph (9 nodes) with multiple SCCs.",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 50, "y": 30 },
+    { "id": 1, "label": "B", "x": 120, "y": 30 },
+    { "id": 2, "label": "C", "x": 190, "y": 30 },
+    { "id": 3, "label": "D", "x": 30, "y": 120 },
+    { "id": 4, "label": "E", "x": 120, "y": 120 },
+    { "id": 5, "label": "F", "x": 210, "y": 120 },
+    { "id": 6, "label": "G", "x": 30, "y": 200 },
+    { "id": 7, "label": "H", "x": 120, "y": 200 },
+    { "id": 8, "label": "I", "x": 210, "y": 200 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true }, { "from": 1, "to": 0, "directed": true },
+    { "from": 1, "to": 2, "directed": true }, { "from": 2, "to": 1, "directed": true },
+    { "from": 0, "to": 2, "directed": true },
+    { "from": 3, "to": 4, "directed": true }, { "from": 4, "to": 3, "directed": true },
+    { "from": 4, "to": 5, "directed": true }, { "from": 5, "to": 4, "directed": true },
+    { "from": 6, "to": 7, "directed": true }, { "from": 7, "to": 6, "directed": true },
+    { "from": 7, "to": 8, "directed": true }, { "from": 8, "to": 7, "directed": true },
+    { "from": 2, "to": 4, "directed": true }, { "from": 5, "to": 7, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

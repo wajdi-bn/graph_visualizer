@@ -1,0 +1,15 @@
+{
+  "id": "edge-coloring-error",
+  "name": "Edge Coloring - Error (No Edges)",
+  "description": "INVALID: Graph with no edges. Edge coloring needs edges to color.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 100, "y": 100 },
+    { "id": 1, "label": "B", "x": 200, "y": 100 },
+    { "id": 2, "label": "C", "x": 150, "y": 200 }
+  ],
+  "edges": [],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

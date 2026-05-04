@@ -1,0 +1,13 @@
+{
+  "id": "bfs-error",
+  "name": "BFS - Error (Single Node)",
+  "description": "Single isolated node. Edge case test for BFS with no edges or neighbors to visit.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 150, "y": 100 }
+  ],
+  "edges": [],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "kosaraju-simple",
+  "name": "Kosaraju - Simple",
+  "description": "Simple directed graph with 2 strongly connected components.",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 80, "y": 100 },
+    { "id": 1, "label": "B", "x": 80, "y": 200 },
+    { "id": 2, "label": "C", "x": 220, "y": 100 },
+    { "id": 3, "label": "D", "x": 220, "y": 200 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true },
+    { "from": 1, "to": 0, "directed": true },
+    { "from": 2, "to": 3, "directed": true },
+    { "from": 3, "to": 2, "directed": true },
+    { "from": 1, "to": 2, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

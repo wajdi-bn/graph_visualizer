@@ -1,0 +1,22 @@
+{
+  "id": "bellman-simple",
+  "name": "Bellman - Simple",
+  "description": "Simple weighted directed graph for Bellman algorithm.",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 50, "y": 100 },
+    { "id": 1, "label": "B", "x": 150, "y": 50 },
+    { "id": 2, "label": "C", "x": 250, "y": 100 },
+    { "id": 3, "label": "D", "x": 150, "y": 150 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "weight": 4, "directed": true },
+    { "from": 0, "to": 3, "weight": 2, "directed": true },
+    { "from": 1, "to": 2, "weight": 1, "directed": true },
+    { "from": 1, "to": 3, "weight": 5, "directed": true },
+    { "from": 3, "to": 2, "weight": 8, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

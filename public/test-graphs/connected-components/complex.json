@@ -1,0 +1,23 @@
+{
+  "id": "connected-components-complex",
+  "name": "Connected Components - Complex (4 Components)",
+  "description": "Graph with 4 connected components of varying sizes.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 40, "y": 100 },
+    { "id": 1, "label": "B", "x": 40, "y": 150 },
+    { "id": 2, "label": "C", "x": 140, "y": 100 },
+    { "id": 3, "label": "D", "x": 140, "y": 150 },
+    { "id": 4, "label": "E", "x": 240, "y": 100 },
+    { "id": 5, "label": "F", "x": 240, "y": 150 },
+    { "id": 6, "label": "G", "x": 340, "y": 125 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": false },
+    { "from": 2, "to": 3, "directed": false },
+    { "from": 4, "to": 5, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

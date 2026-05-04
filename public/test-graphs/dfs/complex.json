@@ -1,0 +1,35 @@
+{
+  "id": "dfs-complex",
+  "name": "DFS - Complex",
+  "description": "More complex DFS test with 10 nodes and multiple paths with cycles.",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 80, "y": 30 },
+    { "id": 1, "label": "B", "x": 150, "y": 30 },
+    { "id": 2, "label": "C", "x": 220, "y": 30 },
+    { "id": 3, "label": "D", "x": 40, "y": 130 },
+    { "id": 4, "label": "E", "x": 120, "y": 130 },
+    { "id": 5, "label": "F", "x": 200, "y": 130 },
+    { "id": 6, "label": "G", "x": 280, "y": 130 },
+    { "id": 7, "label": "H", "x": 60, "y": 230 },
+    { "id": 8, "label": "I", "x": 150, "y": 230 },
+    { "id": 9, "label": "J", "x": 240, "y": 230 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true },
+    { "from": 0, "to": 3, "directed": true },
+    { "from": 1, "to": 2, "directed": true },
+    { "from": 1, "to": 4, "directed": true },
+    { "from": 2, "to": 5, "directed": true },
+    { "from": 3, "to": 4, "directed": true },
+    { "from": 3, "to": 7, "directed": true },
+    { "from": 4, "to": 8, "directed": true },
+    { "from": 5, "to": 6, "directed": true },
+    { "from": 5, "to": 9, "directed": true },
+    { "from": 8, "to": 4, "directed": true },
+    { "from": 9, "to": 6, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

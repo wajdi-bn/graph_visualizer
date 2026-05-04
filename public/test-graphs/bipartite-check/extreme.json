@@ -1,0 +1,28 @@
+{
+  "id": "bipartite-check-extreme",
+  "name": "Bipartite - Extreme (Large Bipartite)",
+  "description": "Large bipartite graph with 10 nodes (5 on each side) fully connected (K5,5). Complex test for bipartite detection on larger graph.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "L1", "x": 50, "y": 30 },
+    { "id": 1, "label": "L2", "x": 50, "y": 80 },
+    { "id": 2, "label": "L3", "x": 50, "y": 130 },
+    { "id": 3, "label": "L4", "x": 50, "y": 180 },
+    { "id": 4, "label": "L5", "x": 50, "y": 230 },
+    { "id": 5, "label": "R1", "x": 300, "y": 30 },
+    { "id": 6, "label": "R2", "x": 300, "y": 80 },
+    { "id": 7, "label": "R3", "x": 300, "y": 130 },
+    { "id": 8, "label": "R4", "x": 300, "y": 180 },
+    { "id": 9, "label": "R5", "x": 300, "y": 230 }
+  ],
+  "edges": [
+    { "from": 0, "to": 5, "directed": false }, { "from": 0, "to": 6, "directed": false }, { "from": 0, "to": 7, "directed": false }, { "from": 0, "to": 8, "directed": false }, { "from": 0, "to": 9, "directed": false },
+    { "from": 1, "to": 5, "directed": false }, { "from": 1, "to": 6, "directed": false }, { "from": 1, "to": 7, "directed": false }, { "from": 1, "to": 8, "directed": false }, { "from": 1, "to": 9, "directed": false },
+    { "from": 2, "to": 5, "directed": false }, { "from": 2, "to": 6, "directed": false }, { "from": 2, "to": 7, "directed": false }, { "from": 2, "to": 8, "directed": false }, { "from": 2, "to": 9, "directed": false },
+    { "from": 3, "to": 5, "directed": false }, { "from": 3, "to": 6, "directed": false }, { "from": 3, "to": 7, "directed": false }, { "from": 3, "to": 8, "directed": false }, { "from": 3, "to": 9, "directed": false },
+    { "from": 4, "to": 5, "directed": false }, { "from": 4, "to": 6, "directed": false }, { "from": 4, "to": 7, "directed": false }, { "from": 4, "to": 8, "directed": false }, { "from": 4, "to": 9, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

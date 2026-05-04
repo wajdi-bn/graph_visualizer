@@ -1,0 +1,28 @@
+{
+  "id": "regular-graph-complex",
+  "name": "Regular Graph - Complex",
+  "description": "K3,3 bipartite 3-regular graph.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 50, "y": 50 },
+    { "id": 1, "label": "B", "x": 50, "y": 150 },
+    { "id": 2, "label": "C", "x": 50, "y": 250 },
+    { "id": 3, "label": "D", "x": 250, "y": 50 },
+    { "id": 4, "label": "E", "x": 250, "y": 150 },
+    { "id": 5, "label": "F", "x": 250, "y": 250 }
+  ],
+  "edges": [
+    { "from": 0, "to": 3, "directed": false },
+    { "from": 0, "to": 4, "directed": false },
+    { "from": 0, "to": 5, "directed": false },
+    { "from": 1, "to": 3, "directed": false },
+    { "from": 1, "to": 4, "directed": false },
+    { "from": 1, "to": 5, "directed": false },
+    { "from": 2, "to": 3, "directed": false },
+    { "from": 2, "to": 4, "directed": false },
+    { "from": 2, "to": 5, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

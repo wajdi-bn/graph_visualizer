@@ -1,0 +1,28 @@
+{
+  "id": "tree-check-complex",
+  "name": "Tree Check - Complex (Larger Valid Tree)",
+  "description": "Valid tree with 8 nodes and 7 edges. Larger tree structure.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 100, "y": 50 },
+    { "id": 1, "label": "B", "x": 50, "y": 150 },
+    { "id": 2, "label": "C", "x": 150, "y": 150 },
+    { "id": 3, "label": "D", "x": 20, "y": 250 },
+    { "id": 4, "label": "E", "x": 80, "y": 250 },
+    { "id": 5, "label": "F", "x": 120, "y": 250 },
+    { "id": 6, "label": "G", "x": 180, "y": 250 },
+    { "id": 7, "label": "H", "x": 150, "y": 350 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": false },
+    { "from": 0, "to": 2, "directed": false },
+    { "from": 1, "to": 3, "directed": false },
+    { "from": 1, "to": 4, "directed": false },
+    { "from": 2, "to": 5, "directed": false },
+    { "from": 2, "to": 6, "directed": false },
+    { "from": 6, "to": 7, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

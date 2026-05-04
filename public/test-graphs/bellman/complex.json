@@ -1,0 +1,31 @@
+{
+  "id": "bellman-complex",
+  "name": "Bellman - Complex",
+  "description": "Complex weighted directed graph (8 nodes).",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 80, "y": 50 },
+    { "id": 1, "label": "B", "x": 150, "y": 30 },
+    { "id": 2, "label": "C", "x": 220, "y": 50 },
+    { "id": 3, "label": "D", "x": 40, "y": 150 },
+    { "id": 4, "label": "E", "x": 120, "y": 150 },
+    { "id": 5, "label": "F", "x": 200, "y": 150 },
+    { "id": 6, "label": "G", "x": 280, "y": 150 },
+    { "id": 7, "label": "H", "x": 150, "y": 250 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "weight": 5, "directed": true },
+    { "from": 0, "to": 3, "weight": 2, "directed": true },
+    { "from": 1, "to": 2, "weight": 3, "directed": true },
+    { "from": 1, "to": 4, "weight": 6, "directed": true },
+    { "from": 2, "to": 5, "weight": 1, "directed": true },
+    { "from": 3, "to": 4, "weight": 8, "directed": true },
+    { "from": 4, "to": 5, "weight": 2, "directed": true },
+    { "from": 4, "to": 7, "weight": 9, "directed": true },
+    { "from": 5, "to": 6, "weight": 4, "directed": true },
+    { "from": 6, "to": 7, "weight": 5, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

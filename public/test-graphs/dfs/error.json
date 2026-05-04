@@ -1,0 +1,13 @@
+{
+  "id": "dfs-error",
+  "name": "DFS - Error (Empty Graph)",
+  "description": "INVALID: Empty graph with no edges. DFS needs at least some edges to traverse.",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 100, "y": 100 }
+  ],
+  "edges": [],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

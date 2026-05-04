@@ -1,0 +1,21 @@
+{
+  "id": "ford-fulkerson-error",
+  "name": "Ford-Fulkerson - Error (No Capacities)",
+  "description": "INVALID: Unweighted graph. Ford-Fulkerson requires capacity values on edges.",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "S", "x": 50, "y": 100 },
+    { "id": 1, "label": "A", "x": 150, "y": 50 },
+    { "id": 2, "label": "B", "x": 150, "y": 150 },
+    { "id": 3, "label": "T", "x": 250, "y": 100 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true },
+    { "from": 0, "to": 2, "directed": true },
+    { "from": 1, "to": 3, "directed": true },
+    { "from": 2, "to": 3, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

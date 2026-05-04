@@ -1,0 +1,41 @@
+{
+  "id": "dijkstra-extreme",
+  "name": "Dijkstra - Extreme (Dense, Large Weights)",
+  "description": "Large weighted graph with 12 nodes, dense connections, and large weight values (100s-1000s). Tests algorithm performance and precision with large numbers.",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    { "id": 0, "label": "S", "x": 20, "y": 100 },
+    { "id": 1, "label": "A", "x": 80, "y": 30 },
+    { "id": 2, "label": "B", "x": 140, "y": 30 },
+    { "id": 3, "label": "C", "x": 200, "y": 30 },
+    { "id": 4, "label": "D", "x": 260, "y": 30 },
+    { "id": 5, "label": "E", "x": 80, "y": 170 },
+    { "id": 6, "label": "F", "x": 140, "y": 170 },
+    { "id": 7, "label": "G", "x": 200, "y": 170 },
+    { "id": 8, "label": "H", "x": 260, "y": 170 },
+    { "id": 9, "label": "I", "x": 320, "y": 100 },
+    { "id": 10, "label": "J", "x": 380, "y": 60 },
+    { "id": 11, "label": "T", "x": 380, "y": 140 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "weight": 100, "directed": true },
+    { "from": 0, "to": 5, "weight": 150, "directed": true },
+    { "from": 1, "to": 2, "weight": 50, "directed": true },
+    { "from": 1, "to": 6, "weight": 200, "directed": true },
+    { "from": 2, "to": 3, "weight": 75, "directed": true },
+    { "from": 2, "to": 7, "weight": 120, "directed": true },
+    { "from": 3, "to": 4, "weight": 90, "directed": true },
+    { "from": 3, "to": 8, "weight": 180, "directed": true },
+    { "from": 4, "to": 9, "weight": 250, "directed": true },
+    { "from": 5, "to": 6, "weight": 65, "directed": true },
+    { "from": 6, "to": 7, "weight": 85, "directed": true },
+    { "from": 7, "to": 8, "weight": 110, "directed": true },
+    { "from": 8, "to": 9, "weight": 140, "directed": true },
+    { "from": 9, "to": 10, "weight": 300, "directed": true },
+    { "from": 9, "to": 11, "weight": 320, "directed": true },
+    { "from": 10, "to": 11, "weight": 10, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

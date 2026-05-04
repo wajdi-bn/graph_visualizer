@@ -1,0 +1,20 @@
+{
+  "id": "eulerian-path-error",
+  "name": "Eulerian Path - Error (No Eulerian Path)",
+  "description": "INVALID: Graph with no Eulerian path (more than 2 odd-degree vertices).",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 100, "y": 50 },
+    { "id": 1, "label": "B", "x": 200, "y": 50 },
+    { "id": 2, "label": "C", "x": 230, "y": 150 },
+    { "id": 3, "label": "D", "x": 150, "y": 200 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": false },
+    { "from": 1, "to": 2, "directed": false },
+    { "from": 2, "to": 3, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

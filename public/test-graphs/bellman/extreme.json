@@ -1,0 +1,28 @@
+{
+  "id": "bellman-extreme",
+  "name": "Bellman - Extreme",
+  "description": "Graph with disconnected components (9 nodes).",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 40, "y": 50 },
+    { "id": 1, "label": "B", "x": 80, "y": 80 },
+    { "id": 2, "label": "C", "x": 120, "y": 50 },
+    { "id": 3, "label": "D", "x": 200, "y": 50 },
+    { "id": 4, "label": "E", "x": 240, "y": 80 },
+    { "id": 5, "label": "F", "x": 280, "y": 50 },
+    { "id": 6, "label": "G", "x": 360, "y": 50 },
+    { "id": 7, "label": "H", "x": 400, "y": 100 },
+    { "id": 8, "label": "I", "x": 440, "y": 50 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "weight": 3, "directed": true },
+    { "from": 1, "to": 2, "weight": 2, "directed": true },
+    { "from": 3, "to": 4, "weight": 5, "directed": true },
+    { "from": 4, "to": 5, "weight": 1, "directed": true },
+    { "from": 6, "to": 7, "weight": 4, "directed": true },
+    { "from": 7, "to": 8, "weight": 2, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

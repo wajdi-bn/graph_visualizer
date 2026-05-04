@@ -1,0 +1,28 @@
+{
+  "id": "ford-fulkerson-complex",
+  "name": "Ford-Fulkerson - Complex",
+  "description": "Complex flow network (6 nodes).",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    { "id": 0, "label": "S", "x": 40, "y": 100 },
+    { "id": 1, "label": "A", "x": 120, "y": 50 },
+    { "id": 2, "label": "B", "x": 120, "y": 150 },
+    { "id": 3, "label": "C", "x": 200, "y": 50 },
+    { "id": 4, "label": "D", "x": 200, "y": 150 },
+    { "id": 5, "label": "T", "x": 280, "y": 100 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "weight": 16, "directed": true },
+    { "from": 0, "to": 2, "weight": 13, "directed": true },
+    { "from": 1, "to": 3, "weight": 12, "directed": true },
+    { "from": 2, "to": 1, "weight": 4, "directed": true },
+    { "from": 2, "to": 4, "weight": 14, "directed": true },
+    { "from": 3, "to": 2, "weight": 9, "directed": true },
+    { "from": 3, "to": 5, "weight": 20, "directed": true },
+    { "from": 4, "to": 3, "weight": 7, "directed": true },
+    { "from": 4, "to": 5, "weight": 4, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

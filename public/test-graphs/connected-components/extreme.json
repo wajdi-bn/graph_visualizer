@@ -1,0 +1,20 @@
+{
+  "id": "connected-components-extreme",
+  "name": "Connected Components - Extreme (Many Isolated)",
+  "description": "Graph with 8 isolated nodes (8 components). Each node is disconnected.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 50, "y": 50 },
+    { "id": 1, "label": "B", "x": 150, "y": 50 },
+    { "id": 2, "label": "C", "x": 250, "y": 50 },
+    { "id": 3, "label": "D", "x": 350, "y": 50 },
+    { "id": 4, "label": "E", "x": 50, "y": 150 },
+    { "id": 5, "label": "F", "x": 150, "y": 150 },
+    { "id": 6, "label": "G", "x": 250, "y": 150 },
+    { "id": 7, "label": "H", "x": 350, "y": 150 }
+  ],
+  "edges": [],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "bfs-extreme",
+  "name": "BFS - Extreme (Disconnected Graph)",
+  "description": "Graph with 8 nodes split into 2 disconnected components. Tests BFS handling of non-connected graphs.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 50, "y": 100 },
+    { "id": 1, "label": "B", "x": 150, "y": 100 },
+    { "id": 2, "label": "C", "x": 250, "y": 100 },
+    { "id": 3, "label": "D", "x": 100, "y": 200 },
+    { "id": 4, "label": "E", "x": 350, "y": 100 },
+    { "id": 5, "label": "F", "x": 450, "y": 100 },
+    { "id": 6, "label": "G", "x": 400, "y": 200 },
+    { "id": 7, "label": "H", "x": 500, "y": 200 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": false },
+    { "from": 1, "to": 2, "directed": false },
+    { "from": 0, "to": 3, "directed": false },
+    { "from": 4, "to": 5, "directed": false },
+    { "from": 5, "to": 6, "directed": false },
+    { "from": 5, "to": 7, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

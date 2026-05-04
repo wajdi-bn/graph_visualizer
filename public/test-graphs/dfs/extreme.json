@@ -1,0 +1,42 @@
+{
+  "id": "dfs-extreme",
+  "name": "DFS - Extreme (Fully Connected DAG)",
+  "description": "Large directed graph with 12 nodes where most edges are present (fully connected DAG).",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 30, "y": 50 },
+    { "id": 1, "label": "B", "x": 100, "y": 30 },
+    { "id": 2, "label": "C", "x": 170, "y": 50 },
+    { "id": 3, "label": "D", "x": 240, "y": 50 },
+    { "id": 4, "label": "E", "x": 30, "y": 130 },
+    { "id": 5, "label": "F", "x": 100, "y": 150 },
+    { "id": 6, "label": "G", "x": 170, "y": 150 },
+    { "id": 7, "label": "H", "x": 240, "y": 150 },
+    { "id": 8, "label": "I", "x": 30, "y": 230 },
+    { "id": 9, "label": "J", "x": 100, "y": 250 },
+    { "id": 10, "label": "K", "x": 170, "y": 250 },
+    { "id": 11, "label": "L", "x": 240, "y": 250 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true },
+    { "from": 0, "to": 4, "directed": true },
+    { "from": 1, "to": 2, "directed": true },
+    { "from": 1, "to": 5, "directed": true },
+    { "from": 2, "to": 3, "directed": true },
+    { "from": 2, "to": 6, "directed": true },
+    { "from": 3, "to": 7, "directed": true },
+    { "from": 4, "to": 5, "directed": true },
+    { "from": 4, "to": 8, "directed": true },
+    { "from": 5, "to": 6, "directed": true },
+    { "from": 5, "to": 9, "directed": true },
+    { "from": 6, "to": 7, "directed": true },
+    { "from": 6, "to": 10, "directed": true },
+    { "from": 7, "to": 11, "directed": true },
+    { "from": 8, "to": 9, "directed": true },
+    { "from": 9, "to": 10, "directed": true },
+    { "from": 10, "to": 11, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

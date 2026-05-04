@@ -1,0 +1,32 @@
+{
+  "id": "kosaraju-complex",
+  "name": "Kosaraju - Complex",
+  "description": "Directed graph with 4 strongly connected components (8 nodes).",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 40, "y": 50 },
+    { "id": 1, "label": "B", "x": 40, "y": 120 },
+    { "id": 2, "label": "C", "x": 140, "y": 50 },
+    { "id": 3, "label": "D", "x": 140, "y": 120 },
+    { "id": 4, "label": "E", "x": 240, "y": 50 },
+    { "id": 5, "label": "F", "x": 240, "y": 120 },
+    { "id": 6, "label": "G", "x": 340, "y": 50 },
+    { "id": 7, "label": "H", "x": 340, "y": 120 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true },
+    { "from": 1, "to": 0, "directed": true },
+    { "from": 2, "to": 3, "directed": true },
+    { "from": 3, "to": 2, "directed": true },
+    { "from": 4, "to": 5, "directed": true },
+    { "from": 5, "to": 4, "directed": true },
+    { "from": 6, "to": 7, "directed": true },
+    { "from": 7, "to": 6, "directed": true },
+    { "from": 1, "to": 2, "directed": true },
+    { "from": 3, "to": 4, "directed": true },
+    { "from": 5, "to": 6, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

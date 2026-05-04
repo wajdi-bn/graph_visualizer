@@ -1,0 +1,19 @@
+{
+  "id": "welsh-powell-error",
+  "name": "Welsh-Powell - Error (Directed Graph)",
+  "description": "INVALID: Directed graph. Welsh-Powell requires undirected graph.",
+  "directed": true,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 100, "y": 50 },
+    { "id": 1, "label": "B", "x": 200, "y": 100 },
+    { "id": 2, "label": "C", "x": 150, "y": 200 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": true },
+    { "from": 1, "to": 2, "directed": true },
+    { "from": 2, "to": 0, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

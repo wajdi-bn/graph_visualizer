@@ -1,0 +1,19 @@
+{
+  "id": "connected-components-simple",
+  "name": "Connected Components - Simple (2 Components)",
+  "description": "Simple graph with 2 connected components. Should identify 2 separate components.",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 80, "y": 100 },
+    { "id": 1, "label": "B", "x": 80, "y": 150 },
+    { "id": 2, "label": "C", "x": 200, "y": 100 },
+    { "id": 3, "label": "D", "x": 200, "y": 150 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": false },
+    { "from": 2, "to": 3, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

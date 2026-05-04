@@ -1,0 +1,23 @@
+{
+  "id": "shortest-unweighted-path-simple",
+  "name": "Shortest Unweighted - Simple",
+  "description": "Simple unweighted undirected graph (5 nodes).",
+  "directed": false,
+  "weighted": false,
+  "nodes": [
+    { "id": 0, "label": "A", "x": 100, "y": 50 },
+    { "id": 1, "label": "B", "x": 50, "y": 150 },
+    { "id": 2, "label": "C", "x": 150, "y": 150 },
+    { "id": 3, "label": "D", "x": 30, "y": 250 },
+    { "id": 4, "label": "E", "x": 100, "y": 250 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "directed": false },
+    { "from": 0, "to": 2, "directed": false },
+    { "from": 1, "to": 3, "directed": false },
+    { "from": 1, "to": 4, "directed": false },
+    { "from": 2, "to": 4, "directed": false }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}

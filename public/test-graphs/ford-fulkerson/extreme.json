@@ -1,0 +1,33 @@
+{
+  "id": "ford-fulkerson-extreme",
+  "name": "Ford-Fulkerson - Extreme",
+  "description": "Large flow network (8 nodes, dense edges).",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    { "id": 0, "label": "S", "x": 30, "y": 100 },
+    { "id": 1, "label": "A", "x": 100, "y": 50 },
+    { "id": 2, "label": "B", "x": 100, "y": 100 },
+    { "id": 3, "label": "C", "x": 100, "y": 150 },
+    { "id": 4, "label": "D", "x": 180, "y": 50 },
+    { "id": 5, "label": "E", "x": 180, "y": 100 },
+    { "id": 6, "label": "F", "x": 180, "y": 150 },
+    { "id": 7, "label": "T", "x": 250, "y": 100 }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "weight": 10, "directed": true },
+    { "from": 0, "to": 2, "weight": 10, "directed": true },
+    { "from": 1, "to": 4, "weight": 10, "directed": true },
+    { "from": 1, "to": 5, "weight": 6, "directed": true },
+    { "from": 2, "to": 4, "weight": 4, "directed": true },
+    { "from": 2, "to": 5, "weight": 8, "directed": true },
+    { "from": 2, "to": 6, "weight": 6, "directed": true },
+    { "from": 3, "to": 5, "weight": 10, "directed": true },
+    { "from": 3, "to": 6, "weight": 9, "directed": true },
+    { "from": 4, "to": 7, "weight": 10, "directed": true },
+    { "from": 5, "to": 7, "weight": 10, "directed": true },
+    { "from": 6, "to": 7, "weight": 10, "directed": true }
+  ],
+  "createdAt": "2026-05-04T14:58:05.071Z",
+  "updatedAt": "2026-05-04T14:58:05.071Z"
+}
