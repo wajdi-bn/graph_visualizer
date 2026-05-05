@@ -1,0 +1,136 @@
+{
+  "name": "Untitled graph",
+  "description": "",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    {
+      "id": 0,
+      "label": "A",
+      "x": 87.58824157714844,
+      "y": 138.98529052734375,
+      "color": "#1e293b"
+    },
+    {
+      "id": 1,
+      "label": "B",
+      "x": 409.82354736328125,
+      "y": 133.16177368164062,
+      "color": "#1e293b"
+    },
+    {
+      "id": 2,
+      "label": "C",
+      "x": 410.4706115722656,
+      "y": 337.6323547363281,
+      "color": "#1e293b"
+    },
+    {
+      "id": 3,
+      "label": "D",
+      "x": 95.3529281616211,
+      "y": 335.69122314453125,
+      "color": "#1e293b"
+    },
+    {
+      "id": 4,
+      "label": "E",
+      "x": 249.3529510498047,
+      "y": 226.9853057861328,
+      "color": "#1e293b"
+    },
+    {
+      "id": 5,
+      "label": "F",
+      "x": 221.52940368652344,
+      "y": 22,
+      "color": "#1e293b"
+    },
+    {
+      "id": 6,
+      "label": "G",
+      "x": 259.058837890625,
+      "y": 386.8088073730469,
+      "color": "#1e293b"
+    }
+  ],
+  "edges": [
+    {
+      "from": 0,
+      "to": 5,
+      "weight": 3,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 5,
+      "to": 1,
+      "weight": -4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 3,
+      "weight": 5,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 6,
+      "to": 3,
+      "weight": -1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 4,
+      "to": 6,
+      "weight": 3,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 4,
+      "to": 2,
+      "weight": -3,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 6,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 1,
+      "weight": 7,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 4,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    }
+  ]
+}

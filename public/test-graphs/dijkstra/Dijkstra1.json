@@ -1,0 +1,155 @@
+{
+  "id": "4c03dfad-1829-447a-a655-4b4507da1d58",
+  "name": "Untitled graph",
+  "description": "",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    {
+      "id": 0,
+      "label": "A",
+      "x": 42.294124603271484,
+      "y": 180.39706420898438,
+      "color": "#1e293b"
+    },
+    {
+      "id": 1,
+      "label": "B",
+      "x": 132.2353057861328,
+      "y": 85.9264907836914,
+      "color": "#1e293b"
+    },
+    {
+      "id": 2,
+      "label": "C",
+      "x": 130.2941131591797,
+      "y": 292.3382263183594,
+      "color": "#1e293b"
+    },
+    {
+      "id": 3,
+      "label": "D",
+      "x": 195.6470489501953,
+      "y": 182.33824157714844,
+      "color": "#1e293b"
+    },
+    {
+      "id": 4,
+      "label": "E",
+      "x": 295.29412841796875,
+      "y": 71.04412841796875,
+      "color": "#1e293b"
+    },
+    {
+      "id": 5,
+      "label": "F",
+      "x": 288.1764831542969,
+      "y": 298.1617736816406,
+      "color": "#1e293b"
+    },
+    {
+      "id": 6,
+      "label": "G",
+      "x": 400.11767578125,
+      "y": 181.69119262695312,
+      "color": "#1e293b"
+    }
+  ],
+  "edges": [
+    {
+      "from": 0,
+      "to": 1,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 2,
+      "weight": 3,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 2,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 3,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 4,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 3,
+      "to": 2,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569",
+      "curve": 5
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "weight": 0,
+      "directed": true,
+      "color": "#475569",
+      "curve": 51.6
+    },
+    {
+      "from": 3,
+      "to": 6,
+      "weight": 9,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 5,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 5,
+      "to": 3,
+      "weight": 3,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 5,
+      "to": 6,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 4,
+      "to": 3,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 4,
+      "to": 6,
+      "weight": 3,
+      "directed": true,
+      "color": "#475569"
+    }
+  ],
+  "createdAt": "2026-05-05T01:32:27.899Z",
+  "updatedAt": "2026-05-05T01:32:27.899Z"
+}

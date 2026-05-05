@@ -1,0 +1,122 @@
+{
+  "id": "4c03dfad-1829-447a-a655-4b4507da1d58",
+  "name": "Untitled graph",
+  "description": "",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    {
+      "id": 0,
+      "label": "A",
+      "x": 37.90427780151367,
+      "y": 209.2822265625,
+      "color": "#1e293b"
+    },
+    {
+      "id": 1,
+      "label": "B",
+      "x": 122.62324523925781,
+      "y": 94.13600158691406,
+      "color": "#1e293b"
+    },
+    {
+      "id": 2,
+      "label": "C",
+      "x": 134.5554962158203,
+      "y": 373.3506164550781,
+      "color": "#1e293b"
+    },
+    {
+      "id": 3,
+      "label": "D",
+      "x": 360.6716003417969,
+      "y": 95.32923126220703,
+      "color": "#1e293b"
+    },
+    {
+      "id": 4,
+      "label": "E",
+      "x": 344.56304931640625,
+      "y": 369.1743469238281,
+      "color": "#1e293b"
+    }
+  ],
+  "edges": [
+    {
+      "from": 0,
+      "to": 1,
+      "weight": 10,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 2,
+      "weight": 5,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 1,
+      "weight": 3,
+      "directed": true,
+      "color": "#475569",
+      "curve": 45.6
+    },
+    {
+      "from": 1,
+      "to": 2,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569",
+      "curve": 38.7
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "weight": 9,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 3,
+      "weight": 1,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 4,
+      "to": 3,
+      "weight": 6,
+      "directed": true,
+      "color": "#475569",
+      "curve": 47.2
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569",
+      "curve": 42.2
+    },
+    {
+      "from": 4,
+      "to": 0,
+      "weight": 7,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 4,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    }
+  ],
+  "createdAt": "2026-05-05T01:32:27.899Z",
+  "updatedAt": "2026-05-05T01:32:27.899Z"
+}

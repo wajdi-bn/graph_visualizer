@@ -11,7 +11,6 @@ import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
   buildShortestPathResults,
-  cloneEdgeStates,
   cloneRecord,
   edgeKey,
   formatDistances,
@@ -57,15 +56,26 @@ export const bellmanFord: Algorithm = {
   visualization: 'graph',
   examples: negativeWeightedExampleOptions,
 
-  // FIX 3 : champ description obligatoire dans le type Algorithm
   description: `Bellman-Ford
 
-Bellman-Ford finds shortest paths from a chosen source using a queue V.
-It supports negative weights but not negative-weight cycles.
-Undirected graphs are accepted only with strictly positive weights.
+Bellman-Ford calcule les plus courts chemins depuis une source s dans un réseau pondéré, en maintenant une file V des nœuds à traiter.
 
-Time Complexity: O(VE)
-Space Complexity: O(V)`,
+Algorithme :
+  Initialisation : V = {s}, d(s) = 0, d(i) = ∞ ∀i ≠ s
+  Tant que V ≠ ∅ :
+    Sélectionner un nœud i dans V et le retirer
+    Pour chaque arc (i,j) sortant de i :
+      Si d(j) > d(i) + l(ij) :
+        d(j) ← d(i) + l(ij)
+        Ajouter j à V (si absent)
+
+Contraintes :
+- Accepte les poids négatifs sur graphes orientés
+- Ne fonctionne pas avec les circuits absorbants
+- Graphes non orientés : poids strictement positifs uniquement
+
+Complexité temporelle : O(V × E) dans le pire cas
+Complexité spatiale : O(V)`,
 
   code: `function bellmanFord(adj, source) {
   // Initialisation
@@ -196,8 +206,6 @@ Space Complexity: O(V)`,
     // ------------------------------------------------------------------
     const distances: Record<number, number | string> = {}
     const predecessors: Record<number, number | null> = {}
-    // FIX 1 : edgeStates typé avec GraphVisualState (pas string)
-    const edgeStates: Record<string, GraphVisualState> = {}
 
     for (const n of nodes) {
       distances[n.id]    = n.id === source ? 0 : inf
@@ -227,8 +235,8 @@ Space Complexity: O(V)`,
       }),
       description: d(
         locale,
-        `Start from ${sourceLabel}. d(${sourceLabel})=0, all others=∞. V={${sourceLabel}}.`,
-        `Départ depuis ${sourceLabel}. d(${sourceLabel})=0, tous les autres=∞. V={${sourceLabel}}.`,
+        `Initialization: d(${sourceLabel})=0, all others=∞. V={${sourceLabel}}. We start by exploring arcs from the source.`,
+        `Initialisation : d(${sourceLabel})=0, tous les autres=∞. V={${sourceLabel}}. On commence par explorer les arcs depuis la source.`,
       ),
       codeLine: 9,
       variables: {
@@ -253,15 +261,15 @@ Space Complexity: O(V)`,
           currentNode: i,
           visitedEdges: predecessorEdges(),
           selectedEdges: predecessorEdges(),
-          edgeStates: cloneEdgeStates(edgeStates),
+          edgeStates: {},
           distances: cloneRecord(distances),
           predecessors: cloneRecord(predecessors),
           phase: d(locale, `Select ${iLabel}`, `Sélectionner ${iLabel}`),
         }),
         description: d(
           locale,
-          `Select ${iLabel} from V (d=${di}). Remaining V={${V.join(', ') || '∅'}}.`,
-          `Sélectionner ${iLabel} dans V (d=${di}). V restant={${V.join(', ') || '∅'}}.`,
+          `Select ${iLabel} from V (d(${iLabel})=${di}). We now examine all arcs leaving ${iLabel}. Remaining V={${V.join(', ') || '∅'}}.`,
+          `Sélectionner ${iLabel} dans V (d(${iLabel})=${di}). On examine tous les arcs sortants de ${iLabel}. V restant={${V.join(', ') || '∅'}}.`,
         ),
         codeLine: 17,
         variables: {
@@ -312,13 +320,13 @@ Space Complexity: O(V)`,
           description: improved
             ? d(
                 locale,
-                `(${iLabel}→${jLabel}): ${di}+${lij}=${candidate} < ${dj} → d(${jLabel})=${candidate}, add ${jLabel} to V.`,
-                `(${iLabel}→${jLabel}) : ${di}+${lij}=${candidate} < ${dj} → d(${jLabel})=${candidate}, ajouter ${jLabel} à V.`,
+                `Arc (${iLabel}→${jLabel}): d(${iLabel})+l=${di}+${lij}=${candidate} < d(${jLabel})=${dj} → update d(${jLabel})=${candidate} and add ${jLabel} to V.`,
+                `Arc (${iLabel}→${jLabel}) : d(${iLabel})+l=${di}+${lij}=${candidate} < d(${jLabel})=${dj} → on met à jour d(${jLabel})=${candidate} et on ajoute ${jLabel} à V.`,
               )
             : d(
                 locale,
-                `(${iLabel}→${jLabel}): ${di}+${lij}=${candidate} ≥ ${dj} → no update.`,
-                `(${iLabel}→${jLabel}) : ${di}+${lij}=${candidate} ≥ ${dj} → pas de mise à jour.`,
+                `Arc (${iLabel}→${jLabel}): d(${iLabel})+l=${di}+${lij}=${candidate} ≥ d(${jLabel})=${dj} → no update, current path is already better.`,
+                `Arc (${iLabel}→${jLabel}) : d(${iLabel})+l=${di}+${lij}=${candidate} ≥ d(${jLabel})=${dj} → pas de mise à jour, le chemin actuel est déjà meilleur.`,
               ),
           codeLine: improved ? 24 : 22,
           variables: {
@@ -354,8 +362,8 @@ Space Complexity: O(V)`,
       }),
       description: d(
         locale,
-        `V = ∅. Bellman-Ford complete from ${sourceLabel}. Distances: ${formatDistances(nodes, distances)}.`,
-        `V = ∅. Bellman-Ford terminé depuis ${sourceLabel}. Distances : ${formatDistances(nodes, distances)}.`,
+        `V = ∅. Bellman-Ford complete. All shortest paths from ${sourceLabel} have been found. Distances: ${formatDistances(nodes, distances)}.`,
+        `V = ∅. Bellman-Ford terminé. Tous les plus courts chemins depuis ${sourceLabel} ont été trouvés. Distances : ${formatDistances(nodes, distances)}.`,
       ),
       variables: {
         source: sourceLabel,

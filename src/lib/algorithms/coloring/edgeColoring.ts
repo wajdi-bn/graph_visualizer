@@ -153,6 +153,13 @@ Space Complexity: O(E)`,
 
     const isValid = isValidEdgeColoring(edges, colorPlan.colors)
 
+    // Détermination de la classe C1 ou C2
+    const colorsUsed   = colorPlan.colorCount
+    const graphClass   = colorsUsed === maxDegree ? 'C1' : 'C2'
+    const classLabel   = colorsUsed === maxDegree
+      ? d(locale, `Class C1 (χ' = Δ = ${colorsUsed}) — optimal`, `Classe C1 (χ' = Δ = ${colorsUsed}) — optimal`)
+      : d(locale, `Class C2 (χ' = Δ+1 = ${colorsUsed})`, `Classe C2 (χ' = Δ+1 = ${colorsUsed})`)
+
     steps.push({
       graph: baseGraph(nodes, edges, {
         edgeColors: { ...edgeColors },
@@ -160,12 +167,13 @@ Space Complexity: O(E)`,
       }),
       description: d(
         locale,
-        `All ${edges.length} edges are colored${isValid ? '' : ', but a conflict was detected'}.`,
-        `Les ${edges.length} aretes sont coloriees${isValid ? '' : ', mais un conflit a ete detecte'}.`,
+        `All ${edges.length} edges colored. Δ = ${maxDegree}, colors used = ${colorsUsed}. ${classLabel}${isValid ? '' : ' (conflict detected)'}`,
+        `Les ${edges.length} aretes sont coloriees. Δ = ${maxDegree}, couleurs utilisees = ${colorsUsed}. ${classLabel}${isValid ? '' : ' (conflit detecte)'}`,
       ),
       variables: {
-        delta: maxDegree,
-        colors: colorPlan.colorCount,
+        'Δ (max degree)': maxDegree,
+        'colors used χ\'': colorsUsed,
+        class: graphClass,
         valid: isValid,
       },
     })

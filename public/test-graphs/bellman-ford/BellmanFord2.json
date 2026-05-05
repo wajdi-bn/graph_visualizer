@@ -1,0 +1,215 @@
+{
+  "name": "Untitled graph",
+  "description": "",
+  "directed": true,
+  "weighted": true,
+  "nodes": [
+    {
+      "id": 0,
+      "label": "A",
+      "x": 22,
+      "y": 262.88604736328125,
+      "color": "#1e293b"
+    },
+    {
+      "id": 1,
+      "label": "B",
+      "x": 125.39362335205078,
+      "y": 126.16214752197266,
+      "color": "#1e293b"
+    },
+    {
+      "id": 2,
+      "label": "C",
+      "x": 136.69313049316406,
+      "y": 269.6657409667969,
+      "color": "#1e293b"
+    },
+    {
+      "id": 3,
+      "label": "D",
+      "x": 132.17332458496094,
+      "y": 398,
+      "color": "#1e293b"
+    },
+    {
+      "id": 4,
+      "label": "E",
+      "x": 239.51849365234375,
+      "y": 129.55198669433594,
+      "color": "#1e293b"
+    },
+    {
+      "id": 5,
+      "label": "F",
+      "x": 240.64842224121094,
+      "y": 265.1459045410156,
+      "color": "#1e293b"
+    },
+    {
+      "id": 6,
+      "label": "G",
+      "x": 242.90835571289062,
+      "y": 395.7401428222656,
+      "color": "#1e293b"
+    },
+    {
+      "id": 7,
+      "label": "H",
+      "x": 332.1743469238281,
+      "y": 136.33171844482422,
+      "color": "#1e293b"
+    },
+    {
+      "id": 8,
+      "label": "I",
+      "x": 340.083984375,
+      "y": 260.62608337402344,
+      "color": "#1e293b"
+    },
+    {
+      "id": 9,
+      "label": "J",
+      "x": 342.34393310546875,
+      "y": 398,
+      "color": "#1e293b"
+    },
+    {
+      "id": 10,
+      "label": "K",
+      "x": 478,
+      "y": 260.6261291503906,
+      "color": "#1e293b"
+    }
+  ],
+  "edges": [
+    {
+      "from": 0,
+      "to": 1,
+      "weight": 8,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 2,
+      "weight": 5,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 0,
+      "to": 3,
+      "weight": 7,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 4,
+      "weight": 6,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 1,
+      "to": 5,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 4,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569",
+      "curve": 41.8
+    },
+    {
+      "from": 4,
+      "to": 7,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 7,
+      "to": 10,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 5,
+      "to": 7,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 5,
+      "to": 8,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 8,
+      "to": 10,
+      "weight": 5,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 2,
+      "to": 5,
+      "weight": 5,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 3,
+      "to": 5,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 3,
+      "to": 6,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 6,
+      "to": 8,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569",
+      "curve": 55.6
+    },
+    {
+      "from": 5,
+      "to": 9,
+      "weight": 2,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 9,
+      "to": 10,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    },
+    {
+      "from": 6,
+      "to": 9,
+      "weight": 4,
+      "directed": true,
+      "color": "#475569"
+    }
+  ]
+}
