@@ -1,6 +1,5 @@
 import type { Algorithm, AlgorithmRunOptions, GraphEdge, GraphNode, Step } from '@lib/types'
 import { d } from '@lib/algorithms/shared'
-import { bellmanFord } from '@lib/algorithms/shortest-paths/bellmanFord'
 import {
   baseGraph,
   buildShortestPathResults,
@@ -74,18 +73,14 @@ Space Complexity: O(V)`,
       const directedCustom = isDirectedGraph(customGraph)
       const custom = graphFromInput(customGraph, { directed: directedCustom })
       if (!directedCustom) {
-        const hasNegative = custom.edges.some((edge) => (edge.weight ?? 0) < 0)
-        if (hasNegative) {
-          return incompatibilityStep(
-            locale,
-            custom.nodes,
-            custom.edges,
-            false,
-            'Undirected graphs must not contain negative weights.',
-            'Les graphes non orientes ne doivent pas contenir de poids negatifs.',
-          )
-        }
-        return bellmanFord.generateSteps(locale, undefined, customGraph, options)
+        return incompatibilityStep(
+          locale,
+          custom.nodes,
+          custom.edges,
+          false,
+          'Bellman (DAG) requires a directed graph. Use Bellman-Ford or Dijkstra for undirected graphs.',
+          'Bellman (DAG) exige un graphe orienté. Utilisez Bellman-Ford ou Dijkstra pour les graphes non orientés.',
+        )
       }
 
       nodes = custom.nodes
@@ -110,7 +105,31 @@ Space Complexity: O(V)`,
 
     const order = topologicalOrder(nodes, edges)
     if (!order) {
-      return bellmanFord.generateSteps(locale, undefined, customGraph, options)
+      // A cycle exists → Bellman DAG is invalid. Block execution with a pedagogical error.
+      return incompatibilityStep(
+        locale,
+        nodes,
+        edges,
+        true,
+        `The graph contains a cycle. The Bellman algorithm used here requires a directed acyclic graph (DAG).
+
+In a DAG, edges are relaxed in topological order — every predecessor is guaranteed to be processed before its successors, making a single pass sufficient and correct.
+
+When a cycle exists, no topological order can be defined, so this algorithm cannot run.
+
+→ To find shortest paths in graphs with cycles:
+  • Use Bellman-Ford if the graph may have negative weights.
+  • Use Dijkstra if all weights are non-negative.`,
+        `Le graphe contient un cycle. L'algorithme Bellman utilisé ici nécessite un graphe acyclique orienté (DAG).
+
+Dans un DAG, les arêtes sont relaxées dans l'ordre topologique — chaque prédécesseur est traité avant ses successeurs, ce qui rend un seul passage suffisant et correct.
+
+Lorsqu'un cycle existe, aucun ordre topologique ne peut être défini, donc cet algorithme ne peut pas s'exécuter.
+
+→ Pour trouver les plus courts chemins dans des graphes avec cycles :
+  • Utilisez Bellman-Ford si le graphe peut contenir des poids négatifs.
+  • Utilisez Dijkstra si tous les poids sont non négatifs.`,
+      )
     }
 
     const source = resolveSourceNodeId(nodes, customGraph, options)

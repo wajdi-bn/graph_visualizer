@@ -135,6 +135,8 @@ Space Complexity: O(V + E)`,
     const steps: Step[] = []
     let maxFlow = 0
     let iteration = 1
+    // Track augmenting paths for the final analysis
+    const augmentingPaths: Array<{ nodes: number[]; bottleneck: number }> = []
 
     // ── Step 0: initialisation ───────────────────────────────────────────────
     steps.push({
@@ -167,6 +169,19 @@ Space Complexity: O(V + E)`,
 
       // No augmenting path → algorithm terminates
       if (!search.path) {
+        // Build full analysis for the termination step
+        const saturatedEdges = edges.filter((e, i) => flow[i] >= (e.weight ?? 1))
+        const saturatedEdgeStates: Record<string, GraphVisualState> = {}
+        for (const e of saturatedEdges) {
+          saturatedEdgeStates[edgeKey(e.from, e.to, true)] = 'rejected'
+        }
+        const saturatedList = saturatedEdges.map(
+          (e) => `${label(nodes, e.from)}\u2192${label(nodes, e.to)} (${e.weight ?? 1}/${e.weight ?? 1})`,
+        )
+        const pathSummary = augmentingPaths.map(
+          (p, i) => `  ${i + 1}. ${p.nodes.map((id) => label(nodes, id)).join('\u2192')} (bottleneck=${p.bottleneck})`,
+        )
+
         steps.push({
           graph: baseGraph(nodes, edgesWithFlowLabels(edges, flow), {
             directed: true,
@@ -175,15 +190,29 @@ Space Complexity: O(V + E)`,
             sinkNodeId: sink,
             currentNode: null,
             nodeColors: { [source]: '#38bdf8', [sink]: '#fb7185' },
-            phase: d(locale, 'No augmenting path', 'Aucun chemin augmentant'),
+            edgeStates: saturatedEdgeStates,
+            phase: d(locale, 'Maximum flow reached', 'Flot maximum atteint'),
           }),
           description: d(
             locale,
-            `No residual path reaches ${sinkLabel}. The maximum flow is ${maxFlow}.`,
-            `Aucun chemin residuel n atteint ${sinkLabel}. Le flot maximum vaut ${maxFlow}.`,
+            `No residual path from ${sourceLabel} reaches ${sinkLabel}: the algorithm terminates.\n\nThe maximum flow value is ${maxFlow}.\n\nWhy it stops: every path from ${sourceLabel} to ${sinkLabel} contains at least one saturated edge (flow = capacity). The saturated edges form a min-cut that separates source from sink. By the max-flow min-cut theorem, no additional flow can be pushed.`,
+            `Aucun chemin résiduel depuis ${sourceLabel} n'atteint ${sinkLabel} : l'algorithme s'arrête.\n\nLe flot maximum est ${maxFlow}.\n\nPourquoi ça s'arrête : tout chemin de ${sourceLabel} vers ${sinkLabel} contient au moins une arête saturée (flot = capacité). Les arêtes saturées forment une coupe minimale qui sépare la source du puits. D'après le théorème flot-max / coupe-min, aucun flot supplémentaire ne peut être acheminé.`,
           ),
           codeLine: 6,
-          variables: { maxFlow },
+          variables: {
+            maxFlow,
+            iterations: iteration - 1,
+            saturatedEdges: saturatedEdges.length,
+          },
+          consoleOutput: [
+            d(locale, `=== Max-Flow / Min-Cut Analysis ===`, `=== Analyse Flot-Max / Coupe-Min ===`),
+            d(locale, `Maximum flow: ${maxFlow}`, `Flot maximum : ${maxFlow}`),
+            d(locale, `Augmenting paths used (${augmentingPaths.length}):`, `Chemins augmentants utilisés (${augmentingPaths.length}) :`),
+            ...pathSummary,
+            d(locale, `Saturated edges (${saturatedEdges.length}):`, `Arêtes saturées (${saturatedEdges.length}) :`),
+            ...(saturatedList.length > 0 ? saturatedList.map((s) => `  ${s}`) : [d(locale, '  - none', '  - aucune')]),
+            d(locale, `Theorem: max-flow = min-cut capacity. No augmenting path exists in the residual network.`, `Théorème : flot-max = capacité de la coupe-min. Aucun chemin augmentant n'existe dans le réseau résiduel.`),
+          ],
         })
         break
       }
@@ -191,6 +220,8 @@ Space Complexity: O(V + E)`,
       const path = search.path
       const bottleneck = Math.min(...path.map((re) => re.residual))
       const pathNodes = [source, ...path.map((re) => re.to)]
+      // Record this augmenting path for final analysis
+      augmentingPaths.push({ nodes: pathNodes, bottleneck })
 
       // Build edge pairs for the visualiser using the original edge direction
       const pathEdgePairs = path.map((re) => originalPair(edges[re.edgeIndex]))

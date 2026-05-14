@@ -7,10 +7,10 @@ import {
   cloneRecord,
   edgeKey,
   graphFromInput,
+  isDirectedGraph,
   label,
   palette,
   requireNodes,
-  requireUndirectedCustom,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   componentExampleOptions,
@@ -51,27 +51,28 @@ export const connectedComponents: Algorithm = {
 }`,
   description: `Connected Components
 
-Connected components partition an undirected graph into maximal groups where every vertex is reachable from every other vertex in the same group.
+Finds all connected components in an undirected graph, or weakly connected components in a directed graph (ignoring edge directions).
 
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
   examples: componentExampleOptions,
   generateSteps(locale = 'en', exampleId, customGraph) {
+    const directed = customGraph ? isDirectedGraph(customGraph) : false
+    // Always build an undirected adjacency list: for directed graphs we find
+    // weakly connected components by ignoring edge orientation.
     const demo = customGraph
       ? graphFromInput(customGraph, { directed: false })
       : { ...getComponentDemo(exampleId), directed: false }
-    const { nodes, edges } = demo
-    const incompatible =
-      requireNodes(locale, nodes, edges, false) ??
-      requireUndirectedCustom(
-        locale,
-        customGraph,
-        nodes,
-        edges,
-        'Connected components is defined here for undirected graphs. Turn off Directed graph in the editor.',
-        'Les composantes connexes sont definies ici pour les graphes non orientes. Desactivez Graphe oriente dans l editeur.',
-      )
+    const { nodes } = demo
+    // Normalise edges as undirected so the traversal explores both directions
+    const edges = demo.edges.map((e) => ({ ...e, directed: false }))
+    const incompatible = requireNodes(locale, nodes, edges, false)
     if (incompatible) return incompatible
+
+    const typeLabel = directed
+      ? d(locale, 'weakly connected components (directed graph — directions ignored)', 'composantes faiblement connexes (graphe orienté — directions ignorées)')
+      : d(locale, 'connected components', 'composantes connexes')
+
     const adj = adjacency(edges)
     const visited = new Set<number>()
     const visitedNodes: number[] = []
@@ -98,12 +99,12 @@ Space Complexity: O(V)`,
           visitedEdges: [...visitedEdges],
           selectedEdges: [...visitedEdges],
           edgeStates: cloneEdgeStates(edgeStates),
-          phase: d(locale, `Start component ${componentIndex + 1}`, `Demarrer le composant ${componentIndex + 1}`),
+          phase: d(locale, `Start component ${componentIndex + 1}`, `Démarrer la composante ${componentIndex + 1}`),
         }),
         description: d(
           locale,
-          `Start a new component from ${label(nodes, node.id)}.`,
-          `Demarrer un nouveau composant depuis ${label(nodes, node.id)}.`,
+          `Start ${typeLabel} ${componentIndex + 1} from ${label(nodes, node.id)}.`,
+          `Démarrer la ${typeLabel} ${componentIndex + 1} depuis ${label(nodes, node.id)}.`,
         ),
         codeLine: 6,
         variables: { component: componentIndex + 1, start: label(nodes, node.id) },
@@ -177,12 +178,12 @@ Space Complexity: O(V)`,
         selectedEdges: [...visitedEdges],
         edgeStates: cloneEdgeStates(edgeStates),
         components,
-        phase: d(locale, 'Components complete', 'Composantes terminees'),
+        phase: d(locale, 'Components complete', 'Composantes terminées'),
       }),
       description: d(
         locale,
-        `Connected components complete. Found ${components.length} component(s).`,
-        `Composantes connexes terminees. ${components.length} composante(s) trouvee(s).`,
+        `Found ${components.length} ${typeLabel}. Each color represents one component.`,
+        `${components.length} ${typeLabel} trouvée(s). Chaque couleur représente une composante.`,
       ),
       variables: { components: components.length },
     })

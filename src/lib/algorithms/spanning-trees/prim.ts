@@ -3,23 +3,19 @@ import { d } from '@lib/algorithms/shared'
 import {
   baseGraph,
   cloneEdgeStates,
-  cloneRecord,
   edgeKey,
   formatDistances,
   graphFromInput,
+  isDirectedGraph,
   inf,
   isTree,
   label,
-  palette,
-  requireConnectedGraph,
   requireNodes,
-  requireUndirectedCustom,
   requireWeightedGraph,
   resolveSourceNodeId,
 } from '@lib/algorithms/graphAlgorithmUtils'
 import {
   MinHeap,
-  buildForestColors,
   computeKruskalForest,
   sumEdgeWeights,
 } from '@lib/algorithms/spanning-trees/mstUtils'
@@ -73,10 +69,7 @@ export const prim: Algorithm = {
 
 Prim grows a minimum spanning tree by extracting the cheapest outgoing edge from a min-heap.
 
-**Requirements:**
-- All edge weights must be non-negative and finite
-- Graph must be undirected and weighted
-- Graph must be connected (or each component will be handled separately)
+If the graph is directed, edge directions are ignored and the graph is treated as undirected for the spanning tree computation.
 
 **How to use:**
 - Default: Starts from the first node in the graph
@@ -86,22 +79,16 @@ Time Complexity: O(E log V)
 Space Complexity: O(V)`,
   examples: weightedExampleOptions,
   generateSteps(locale = 'en', exampleId, customGraph, options?: AlgorithmRunOptions) {
+    const directed = customGraph ? isDirectedGraph(customGraph) : false
     const demo = customGraph
       ? graphFromInput(customGraph, { directed: false })
       : { ...getWeightedDemo(exampleId), directed: false }
-    const { nodes, edges } = demo
+    const nodes = demo.nodes
+    // Treat all edges as undirected for MST computation
+    const edges = demo.edges.map((e) => ({ ...e, directed: false }))
     const incompatible =
       requireNodes(locale, nodes, edges, false) ??
-      requireUndirectedCustom(
-        locale,
-        customGraph,
-        nodes,
-        edges,
-        'Prim builds an undirected minimum spanning tree. Turn off Directed graph in the editor.',
-        'Prim construit un arbre couvrant minimal non oriente. Desactivez Graphe oriente dans l editeur.',
-      ) ??
-      requireWeightedGraph(locale, nodes, edges, false) ??
-      requireConnectedGraph(locale, nodes, edges)
+      requireWeightedGraph(locale, nodes, edges, false)
     if (incompatible) return incompatible
     const adj: Record<number, { node: number; weight: number; edge: GraphEdge }[]> = {}
     for (const edge of edges) {
@@ -126,10 +113,10 @@ Space Complexity: O(V)`,
     const heap = new MinHeap<{ node: number; key: number }>()
     const resolvedSourceNodeId = resolveSourceNodeId(nodes, customGraph, options)
     let componentIndex = 0
-    const nodeColors: Record<number, string> = {}
-    let activeComponentColor: string | null = null
-    const treeEdgesLabel = d(locale, 'Tree edges', 'Aretes de l arbre')
+    const treeEdgesLabel = d(locale, 'Tree edges', 'Arêtes de l\'arbre')
     const treeEdgeColor = 'var(--graph-selected, #34d399)'
+    // directed flag used for informational message only
+    void directed
 
     for (const node of nodes) {
       key[node.id] = inf
@@ -140,8 +127,6 @@ Space Complexity: O(V)`,
 
     const startComponent = (startId: number) => {
       componentIndex += 1
-      activeComponentColor = palette[(componentIndex - 1) % palette.length]
-      nodeColors[startId] = activeComponentColor
       key[startId] = 0
       keyNum[startId] = 0
       heap.push({ node: startId, key: 0 })
@@ -149,26 +134,25 @@ Space Complexity: O(V)`,
       const startLabel = label(nodes, startId)
       const phase =
         componentIndex === 1
-          ? d(locale, `Start the tree at ${startLabel}`, `Demarrer l arbre en ${startLabel}`)
-          : d(locale, `Start component ${componentIndex}`, `Demarrer la composante ${componentIndex}`)
+          ? d(locale, `Start the tree at ${startLabel}`, `Démarrer l'arbre en ${startLabel}`)
+          : d(locale, `Start component ${componentIndex}`, `Démarrer la composante ${componentIndex}`)
       const description =
         componentIndex === 1
           ? d(
               locale,
               `Start Prim from ${startLabel}. Keys track the cheapest edge into the tree. You can click any node to start from a different vertex.`,
-              `On demarre Prim depuis ${startLabel}. Les cles gardent l arete la moins chere. Vous pouvez cliquer sur n'importe quel sommet pour commencer ailleurs.`,
+              `On démarre Prim depuis ${startLabel}. Les clés gardent l'arête la moins chère. Vous pouvez cliquer sur n'importe quel sommet pour commencer ailleurs.`,
             )
           : d(
               locale,
               `The graph is disconnected; start a new component at ${startLabel}.`,
-              `Le graphe est non connexe; on demarre une nouvelle composante en ${startLabel}.`,
+              `Le graphe est non connexe ; on démarre une nouvelle composante en ${startLabel}.`,
             )
 
       steps.push({
         graph: baseGraph(nodes, edges, {
           visitedNodes: [...inTree],
           currentNode: startId,
-          nodeColors: cloneRecord(nodeColors),
           selectedEdges: [...selectedEdges],
           edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
           labels: { treeEdges: treeEdgesLabel },
@@ -203,9 +187,6 @@ Space Complexity: O(V)`,
 
         const current = entry.node
         inTree.add(current)
-        if (activeComponentColor && !nodeColors[current]) {
-          nodeColors[current] = activeComponentColor
-        }
         if (parent[current] != null && parentEdge[current]) {
           selectedEdges.push([parent[current]!, current])
           selectedEdgeObjects.push(parentEdge[current]!)
@@ -220,7 +201,6 @@ Space Complexity: O(V)`,
             selectedEdges: [...selectedEdges],
             currentEdge: parent[current] == null ? null : [parent[current]!, current],
             edgeStates: cloneEdgeStates(edgeStates),
-            nodeColors: cloneRecord(nodeColors),
             edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
             labels: { treeEdges: treeEdgesLabel },
             phase: d(locale, 'Extract min from heap', 'Extraire le minimum du tas'),
@@ -230,12 +210,12 @@ Space Complexity: O(V)`,
               ? d(
                   locale,
                   `${label(nodes, current)} starts a new tree in its component.`,
-                  `${label(nodes, current)} demarre un nouvel arbre dans sa composante.`,
+                  `${label(nodes, current)} démarre un nouvel arbre dans sa composante.`,
                 )
               : d(
                   locale,
-                  `Add ${label(nodes, current)} through ${label(nodes, parent[current]!)}-${label(nodes, current)} (weight ${key[current]}).`,
-                  `Ajouter ${label(nodes, current)} via ${label(nodes, parent[current]!)}-${label(nodes, current)} (poids ${key[current]}).`,
+                  `Add ${label(nodes, current)} through ${label(nodes, parent[current]!)}–${label(nodes, current)} (weight ${key[current]}).`,
+                  `Ajouter ${label(nodes, current)} via ${label(nodes, parent[current]!)}–${label(nodes, current)} (poids ${key[current]}).`,
                 ),
           codeLine: 14,
           variables: { vertex: label(nodes, current), key: key[current] },
@@ -258,15 +238,14 @@ Space Complexity: O(V)`,
                 visitedEdges: [...selectedEdges],
                 selectedEdges: [...selectedEdges],
                 edgeStates: cloneEdgeStates(edgeStates),
-                nodeColors: cloneRecord(nodeColors),
                 edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
                 labels: { treeEdges: treeEdgesLabel },
-                phase: d(locale, 'Update frontier keys', 'Mettre a jour les cles de frontiere'),
+                phase: d(locale, 'Update frontier keys', 'Mettre à jour les clés de frontière'),
               }),
               description: d(
                 locale,
                 `Update ${label(nodes, neighbor)}: cheapest connection is now from ${label(nodes, current)} with weight ${weight}.`,
-                `Mettre a jour ${label(nodes, neighbor)} : la connexion la moins chere vient de ${label(nodes, current)} avec le poids ${weight}.`,
+                `Mettre à jour ${label(nodes, neighbor)} : la connexion la moins chère vient de ${label(nodes, current)} avec le poids ${weight}.`,
               ),
               codeLine: 18,
               variables: { vertex: label(nodes, neighbor), key: weight, keys: formatDistances(nodes, key) },
@@ -280,27 +259,26 @@ Space Complexity: O(V)`,
     const validTree = isTree(nodes, selectedEdgeObjects)
     const kruskalSummary = computeKruskalForest(nodes, edges)
     const crossCheckMatch = Math.abs(kruskalSummary.totalCost - totalCost) < 1e-9
-    const forestColors = buildForestColors(nodes, selectedEdgeObjects)
     const edgeList = selectedEdgeObjects.map(
-      (edge) => `${label(nodes, edge.from)}-${label(nodes, edge.to)} (w=${edge.weight ?? 1})`,
+      (edge) => `${label(nodes, edge.from)}–${label(nodes, edge.to)} (w=${edge.weight ?? 1})`,
     )
     const emptyEdgeLine = d(locale, '- none', '- aucune')
-    const edgeListLines = edgeList.length > 0 ? edgeList.map((edge) => `- ${edge}`) : [emptyEdgeLine]
+    const edgeListLines = edgeList.length > 0 ? edgeList.map((e) => `- ${e}`) : [emptyEdgeLine]
 
+    // Summary step
     steps.push({
       graph: baseGraph(nodes, edges, {
         visitedEdges: [...selectedEdges],
         selectedEdges: [...selectedEdges],
         edgeStates: cloneEdgeStates(edgeStates),
-        nodeColors: forestColors.nodeColors,
         edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
         labels: { treeEdges: treeEdgesLabel },
-        phase: d(locale, 'MST summary', 'Resume de l ACM'),
+        phase: d(locale, 'MST summary', 'Résumé de l\'ACM'),
       }),
       description: d(
         locale,
-        'Summary of the minimum spanning tree built by Prim.',
-        'Resume de l arbre couvrant minimal construit par Prim.',
+        `Prim complete. MST cost: ${totalCost}. Selected edges are highlighted in green.`,
+        `Prim terminé. Coût de l'ACM : ${totalCost}. Les arêtes sélectionnées sont surlignées en vert.`,
       ),
       codeLine: 26,
       variables: {
@@ -313,25 +291,36 @@ Space Complexity: O(V)`,
         costMatch: crossCheckMatch,
       },
       consoleOutput: [
-        d(locale, `Edges (${selectedEdgeObjects.length}):`, `Aretes (${selectedEdgeObjects.length}) :`),
+        d(locale, `=== Minimum Spanning Tree (Prim) ===`, `=== Arbre Couvrant Minimal (Prim) ===`),
+        d(locale, `Edges selected (${selectedEdgeObjects.length}):`, `Arêtes sélectionnées (${selectedEdgeObjects.length}) :`),
         ...edgeListLines,
-        d(locale, `Total cost: ${totalCost}`, `Cout total : ${totalCost}`),
-        d(
-          locale,
-          `Valid spanning tree: ${validTree ? 'yes' : 'no'}`,
-          `Arbre couvrant valide : ${validTree ? 'oui' : 'non'}`,
-        ),
-        d(
-          locale,
-          `Components: ${kruskalSummary.componentCount} (${kruskalSummary.componentCount === 1 ? 'connected' : 'forest'})`,
-          `Composantes : ${kruskalSummary.componentCount} (${kruskalSummary.componentCount === 1 ? 'connexe' : 'foret'})`,
-        ),
-        d(
-          locale,
-          `Cross-check: Prim=${totalCost}, Kruskal=${kruskalSummary.totalCost}, match=${crossCheckMatch ? 'yes' : 'no'}`,
-          `Verification croisee : Prim=${totalCost}, Kruskal=${kruskalSummary.totalCost}, ok=${crossCheckMatch ? 'oui' : 'non'}`,
-        ),
+        d(locale, `Total cost: ${totalCost}`, `Coût total : ${totalCost}`),
+        d(locale, `Valid spanning tree: ${validTree ? 'yes' : 'no'}`, `Arbre couvrant valide : ${validTree ? 'oui' : 'non'}`),
+        d(locale, `Cross-check vs Kruskal: ${crossCheckMatch ? 'costs match ✓' : `costs differ — Kruskal=${kruskalSummary.totalCost}, Prim=${totalCost}`}`, `Vérification croisée Kruskal : ${crossCheckMatch ? 'coûts identiques ✓' : `coûts différents — Kruskal=${kruskalSummary.totalCost}, Prim=${totalCost}`}`),
       ],
+    })
+
+    // Final MST-only step — only the selected tree edges shown
+    const mstOnlyEdgeStates: Record<string, GraphVisualState> = {}
+    for (const [from, to] of selectedEdges) mstOnlyEdgeStates[edgeKey(from, to)] = 'selected'
+
+    steps.push({
+      graph: baseGraph(nodes, selectedEdgeObjects, {
+        directed: false,
+        visitedEdges: [...selectedEdges],
+        selectedEdges: [...selectedEdges],
+        edgeStates: mstOnlyEdgeStates,
+        edgeColors: buildTreeEdgeColors(selectedEdges, treeEdgeColor),
+        labels: { treeEdges: treeEdgesLabel },
+        phase: d(locale, 'Minimum spanning tree only', 'Arbre couvrant minimal uniquement'),
+      }),
+      description: d(
+        locale,
+        `Minimum spanning tree only. Total cost: ${totalCost}. Non-tree edges are hidden.`,
+        `Arbre couvrant minimal uniquement. Coût total : ${totalCost}. Les arêtes hors-arbre sont masquées.`,
+      ),
+      codeLine: 26,
+      variables: { totalCost, edgesSelected: selectedEdgeObjects.length },
     })
 
     return steps

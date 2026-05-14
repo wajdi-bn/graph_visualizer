@@ -38,6 +38,12 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     initialAlgorithm?.examples?.[0]?.id ?? null,
   )
+  // Ref to read the latest selectedExampleId synchronously inside callbacks without stale closure
+  const selectedExampleIdRef = useRef<string | null>(initialAlgorithm?.examples?.[0]?.id ?? null)
+  useEffect(() => {
+    selectedExampleIdRef.current = selectedExampleId
+  }, [selectedExampleId])
+
   const [steps, setSteps] = useState<Step[]>(() =>
     initialAlgorithm
       ? getSteps(initialAlgorithm, initialAlgorithm.examples?.[0]?.id)
@@ -69,7 +75,14 @@ export function usePlayback(locale: Locale, initialAlgorithm?: Algorithm | null)
     setSelectedAlgorithm(algo)
     setSelectedSourceNodeId(null)
     setSelectedSinkNodeId(null)
-    const exampleId = algo.examples?.[0]?.id ?? null
+
+    // Persist the currently-loaded session graph when switching algorithms.
+    // Only fall back to the algorithm's default example when no custom graph is active.
+    const persistedExampleId = selectedExampleIdRef.current
+    const keepSessionGraph =
+      persistedExampleId != null && isSessionGraphExampleId(persistedExampleId)
+    const exampleId = keepSessionGraph ? persistedExampleId : (algo.examples?.[0]?.id ?? null)
+
     setSelectedExampleId(exampleId)
     const newSteps = getSteps(algo, exampleId)
     setSteps(newSteps)
