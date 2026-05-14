@@ -27,17 +27,32 @@ export const bellman: Algorithm = {
   difficulty: 'advanced',
   visualization: 'graph',
   code: `function dagShortestPaths(graph, source) {
-  const order = topologicalSort(graph);
+  const pred = graph.predecessors; // list of incoming edges per node
+  const succ = graph.successors;   // list of outgoing neighbors per node
+  const remaining = graph.indegree.slice();
   const dist = Array(graph.vertexCount).fill(Infinity);
   const parent = Array(graph.vertexCount).fill(null);
-  dist[source] = 0;
+  const queue = graph.vertices.filter(v => remaining[v] === 0);
 
-  for (const u of order) {
-    for (const edge of graph.outgoing[u]) {
-      if (dist[u] + edge.weight < dist[edge.to]) {
-        dist[edge.to] = dist[u] + edge.weight;
-        parent[edge.to] = u;
+  while (queue.length > 0) {
+    const v = queue.shift();
+
+    // Compute d(v) once, when all predecessors are processed
+    if (v === source) dist[v] = 0;
+    else {
+      let best = Infinity;
+      let bestPred = null;
+      for (const { from, weight } of pred[v]) {
+        const cand = dist[from] + weight;
+        if (cand < best) { best = cand; bestPred = from; }
       }
+      dist[v] = best;
+      parent[v] = bestPred;
+    }
+
+    for (const u of succ[v]) {
+      remaining[u] -= 1;
+      if (remaining[u] === 0) queue.push(u);
     }
   }
 
@@ -45,7 +60,15 @@ export const bellman: Algorithm = {
 }`,
   description: `Bellman for DAGs
 
-This version computes shortest paths in a directed acyclic graph by relaxing edges in topological order.
+This version computes shortest paths in a directed acyclic graph by relaxing edges in a topological order.
+
+Algorithm sketch (DAG, no cycles):
+1. Let X be the set of all vertices, and S the set of processed vertices (S starts empty).
+2. Repeatedly choose a vertex whose predecessors are all already in S.
+3. For that vertex, take the minimum distance computed from its processed predecessors.
+4. Add the vertex to S and continue until X = S.
+
+At every step, only a vertex whose predecessors are already processed is handled.
 
 Time Complexity: O(V + E)
 Space Complexity: O(V)`,
@@ -145,6 +168,14 @@ Lorsqu'un cycle existe, aucun ordre topologique ne peut être défini, donc cet 
       predecessors[node.id] = null
     }
 
+    const displayDistances = (finalized: Set<number>) => {
+      const snapshot: Record<number, number | string> = {}
+      for (const node of nodes) {
+        snapshot[node.id] = finalized.has(node.id) ? distances[node.id] : inf
+      }
+      return snapshot
+    }
+
     steps.push({
       graph: baseGraph(nodes, edges, {
         directed: true,
@@ -164,50 +195,123 @@ Lorsqu'un cycle existe, aucun ordre topologique ne peut être défini, donc cet 
       variables: { source: label(nodes, source), order: order.map((id) => label(nodes, id)).join(', ') },
     })
 
-    // In a DAG, one pass in topological order is enough because every predecessor is processed first.
-    for (const current of order) {
-      for (const edge of edges.filter((candidate) => candidate.from === current)) {
-        const fromValue = distances[edge.from]
-        const candidate = fromValue === inf ? inf : (fromValue as number) + (edge.weight ?? 0)
-        const oldValue = distances[edge.to]
-        const improved = candidate !== inf && (oldValue === inf || (candidate as number) < (oldValue as number))
+    const predecessorsList: Record<number, { from: number; weight: number }[]> = {}
+    const successorsList: Record<number, number[]> = {}
+    const remainingPredCount: Record<number, number> = {}
 
-        if (improved) {
-          distances[edge.to] = candidate
-          predecessors[edge.to] = edge.from
+    for (const node of nodes) {
+      predecessorsList[node.id] = []
+      successorsList[node.id] = []
+      remainingPredCount[node.id] = 0
+    }
+
+    for (const edge of edges) {
+      predecessorsList[edge.to].push({ from: edge.from, weight: edge.weight ?? 0 })
+      successorsList[edge.from].push(edge.to)
+      remainingPredCount[edge.to] += 1
+    }
+
+    const processed = new Set<number>()
+    const queue = nodes.filter((node) => remainingPredCount[node.id] === 0).map((node) => node.id)
+    if (queue.includes(source)) {
+      queue.splice(queue.indexOf(source), 1)
+      queue.unshift(source)
+    }
+    let iteration = 0
+
+    steps.push({
+      graph: baseGraph(nodes, edges, {
+        directed: true,
+        sourceNodeId: source,
+        currentNode: queue[0] ?? null,
+        visitedNodes: [...processed],
+        queue: [...queue],
+        order,
+        distances: displayDistances(processed),
+        predecessors: cloneRecord(predecessors),
+        phase: d(locale, 'Choose a ready vertex', 'Choisir un sommet pret'),
+      }),
+      description: d(
+        locale,
+        'Process only vertices whose predecessors are already in S (processed set).',
+        'On traite uniquement les sommets dont les predecesseurs sont deja dans S (ensemble traite).',
+      ),
+      codeLine: 6,
+      variables: {
+        iteration,
+        choice: queue.map((id) => label(nodes, id)).join(', '),
+        S: [...processed].map((id) => label(nodes, id)).join(', '),
+      },
+    })
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      processed.add(current)
+      iteration += 1
+
+      let bestValue: number | string = inf
+      let bestPred: number | null = null
+      if (current === source) {
+        bestValue = 0
+      } else {
+        for (const pred of predecessorsList[current]) {
+          if (!processed.has(pred.from)) continue
+          const predDist = distances[pred.from]
+          if (predDist === inf) continue
+          const candidate = (predDist as number) + pred.weight
+          if (bestValue === inf || candidate < (bestValue as number)) {
+            bestValue = candidate
+            bestPred = pred.from
+          }
         }
+      }
 
-        const selectedEdges = predecessorEdges(predecessors)
-        steps.push({
-          graph: baseGraph(nodes, edges, {
-            directed: true,
-            sourceNodeId: source,
-            currentNode: current,
-            currentEdge: [edge.from, edge.to],
-            visitedEdges: selectedEdges,
-            selectedEdges,
-            edgeStates: {
-              [edgeKey(edge.from, edge.to, true)]: improved ? 'relaxed' : 'candidate',
-            },
-            order,
-            distances: cloneRecord(distances),
-            predecessors: cloneRecord(predecessors),
-            phase: d(locale, 'Relax in topological order', 'Relacher dans l ordre topologique'),
-          }),
-          description: improved
-            ? d(
-                locale,
-                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} improves ${label(nodes, edge.to)} from ${oldValue} to ${candidate}.`,
-                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} ameliore ${label(nodes, edge.to)} de ${oldValue} a ${candidate}.`,
-              )
-            : d(
-                locale,
-                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} does not improve the current distance.`,
-                `${label(nodes, edge.from)} -> ${label(nodes, edge.to)} n ameliore pas la distance courante.`,
-              ),
-          codeLine: 8,
-          variables: { edge: `${label(nodes, edge.from)}->${label(nodes, edge.to)}`, distances: formatDistances(nodes, distances) },
-        })
+      distances[current] = bestValue
+      predecessors[current] = bestPred
+
+      const currentEdge = bestPred == null ? null : [bestPred, current]
+      const selectedEdges = predecessorEdges(predecessors)
+
+      steps.push({
+        graph: baseGraph(nodes, edges, {
+          directed: true,
+          sourceNodeId: source,
+          currentNode: current,
+          currentEdge,
+          visitedNodes: [...processed],
+          visitedEdges: selectedEdges,
+          selectedEdges,
+          edgeStates: currentEdge
+            ? { [edgeKey(currentEdge[0], currentEdge[1], true)]: 'relaxed' }
+            : {},
+          queue: [...queue],
+          order,
+          distances: displayDistances(processed),
+          predecessors: cloneRecord(predecessors),
+          phase: d(locale, 'Finalize vertex distance', 'Finaliser la distance du sommet'),
+        }),
+        description: d(
+          locale,
+          bestPred == null
+            ? `${label(nodes, current)} is finalized with distance ${bestValue}.`
+            : `${label(nodes, current)} takes the minimum from processed predecessors; best is ${label(nodes, bestPred)} -> ${label(nodes, current)} with ${bestValue}.`,
+          bestPred == null
+            ? `${label(nodes, current)} est finalise avec la distance ${bestValue}.`
+            : `${label(nodes, current)} prend le minimum depuis ses predecesseurs traites ; meilleur est ${label(nodes, bestPred)} -> ${label(nodes, current)} avec ${bestValue}.`,
+        ),
+        codeLine: 12,
+        variables: {
+          iteration,
+          choice: queue.map((id) => label(nodes, id)).join(', '),
+          S: [...processed].map((id) => label(nodes, id)).join(', '),
+          current: label(nodes, current),
+          [`d(${label(nodes, current)})`]: bestValue,
+        },
+      })
+
+      for (const next of successorsList[current]) {
+        remainingPredCount[next] -= 1
+        if (remainingPredCount[next] === 0) queue.push(next)
       }
     }
 
@@ -219,7 +323,7 @@ Lorsqu'un cycle existe, aucun ordre topologique ne peut être défini, donc cet 
         visitedEdges: predecessorEdges(predecessors),
         selectedEdges: predecessorEdges(predecessors),
         order,
-        distances: cloneRecord(distances),
+        distances: displayDistances(processed),
         predecessors: cloneRecord(predecessors),
         pathResults: buildShortestPathResults(nodes, predecessors, distances, source),
         phase: d(locale, 'DAG shortest paths complete', 'Plus courts chemins DAG termines'),
@@ -229,7 +333,11 @@ Lorsqu'un cycle existe, aucun ordre topologique ne peut être défini, donc cet 
         `Shortest paths from ${label(nodes, source)} are complete. Distances: ${formatDistances(nodes, distances)}.`,
         `Les plus courts chemins depuis ${label(nodes, source)} sont termines. Distances : ${formatDistances(nodes, distances)}.`,
       ),
-      variables: { distances: formatDistances(nodes, distances) },
+      variables: {
+        iteration,
+        choice: '',
+        S: [...processed].map((id) => label(nodes, id)).join(', '),
+      },
     })
 
     return steps

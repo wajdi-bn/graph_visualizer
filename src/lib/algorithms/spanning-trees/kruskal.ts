@@ -136,7 +136,6 @@ Space Complexity: O(V)`,
       steps.push({
         graph: baseGraph(nodes, edges, {
           directed: false,
-          currentNode: edge.from,
           currentEdge: [edge.from, edge.to],
           visitedEdges: [...selectedEdges],
           selectedEdges: [...selectedEdges],
