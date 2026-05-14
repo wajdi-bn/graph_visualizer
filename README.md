@@ -31,3 +31,13 @@ npm run build
 ```
 
 This project is built with Astro, React, Tailwind CSS, and Monaco Editor.
+
+## Deploy to Vercel
+
+This project is ready to deploy as a static Astro site on Vercel.
+
+- Build command: `npm run build`
+- Output directory: `dist`
+- Install command: `npm install`
+
+If you need a canonical site URL for the sitemap, set `SITE` in your Vercel environment variables.

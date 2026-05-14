@@ -4,8 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@astrojs/react'
 import sitemap from '@astrojs/sitemap'
 
+const site =
+  process.env.SITE ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://graph-theory-visualizer.example')
+
 export default defineConfig({
-  site: 'https://graph-theory-visualizer.example',
+  site,
   integrations: [
     react(),
     sitemap({
@@ -26,6 +30,6 @@ export default defineConfig({
     },
   },
   vite: {
-    plugins: [tailwindcss()],
+    plugins: tailwindcss().filter(Boolean),
   },
 })
